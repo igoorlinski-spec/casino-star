@@ -40,7 +40,7 @@ const RegisterPage: React.FC = () => {
       login(token, user, needs);
       navigate('/character');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Rejestracja nie powiodła się.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Rejestracja nie powiodła się.');
     } finally {
       setLoading(false);
     }

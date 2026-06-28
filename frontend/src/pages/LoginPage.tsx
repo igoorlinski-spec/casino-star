@@ -27,7 +27,7 @@ const LoginPage: React.FC = () => {
         navigate('/game/kasyno');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Niepoprawny login lub hasło.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Niepoprawny login lub hasło.');
     } finally {
       setLoading(false);
     }
