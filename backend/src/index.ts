@@ -1,0 +1,116 @@
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
+
+import authRouter from './routes/auth';
+import shopRouter from './routes/shop';
+import workRouter from './routes/work';
+import leaderboardRouter from './routes/leaderboard';
+import gameRouter from './routes/game';
+import { setupMatchmaking } from './sockets/matchmaking';
+
+dotenv.config();
+
+export const prisma = new PrismaClient();
+
+const app = express();
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Middleware
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true,
+  })
+);
+app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRouter);
+app.use('/api/shop', shopRouter);
+app.use('/api/work', workRouter);
+app.use('/api/leaderboard', leaderboardRouter);
+app.use('/api/game', gameRouter);
+
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Socket.io
+setupMatchmaking(io);
+
+// Seed houses on startup
+async function seedHouses() {
+  const houses = [
+    {
+      id: 1,
+      name: 'Rudera',
+      price: 0,
+      sleepBonus: 20,
+      hasFridge: false,
+      hasTap: false,
+      freeFood: false,
+    },
+    {
+      id: 2,
+      name: 'Kawalerka',
+      price: 10000,
+      sleepBonus: 33,
+      hasFridge: true,
+      hasTap: false,
+      freeFood: false,
+    },
+    {
+      id: 3,
+      name: 'Mieszkanie',
+      price: 25000,
+      sleepBonus: 50,
+      hasFridge: true,
+      hasTap: true,
+      freeFood: false,
+    },
+    {
+      id: 4,
+      name: 'Willa',
+      price: 100000,
+      sleepBonus: 100,
+      hasFridge: true,
+      hasTap: true,
+      freeFood: true,
+    },
+  ];
+
+  for (const house of houses) {
+    await prisma.house.upsert({
+      where: { name: house.name },
+      update: {},
+      create: house,
+    });
+  }
+
+  console.log('✅ Houses seeded successfully');
+}
+
+const PORT = process.env.PORT || 4000;
+
+httpServer.listen(PORT, async () => {
+  console.log(`🚀 Casino Star backend running on port ${PORT}`);
+  await seedHouses();
+});
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});

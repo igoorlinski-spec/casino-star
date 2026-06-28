@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  nickname         String   @unique @db.VarChar(10)
+  passwordHash     String
+  tokens           Int      @default(0)
+  skinColor        String   @default("light")
+  hairStyle        String   @default("short")
+  characterCreated Boolean  @default(false)
+  hasBag           Boolean  @default(false)
+  tinderHearts     Int      @default(0)
+  tinderBadge      String?  @default("")
+  createdAt        DateTime @default(now())
+
+  playerNeeds   PlayerNeeds?
+  playerHouse   PlayerHouse?
+  playerStats   PlayerStats?
+  inventory     Inventory[]
+  bagInventory  BagInventory[]
+  matchesAsP1   MatchHistory[] @relation("Player1Matches")
+  matchesAsP2   MatchHistory[] @relation("Player2Matches")
+  matchesWon    MatchHistory[] @relation("WinnerMatches")
+}
+
+model PlayerNeeds {
+  userId     String   @id
+  sleep      Float    @default(100)
+  hunger     Float    @default(100)
+  hydration  Float    @default(100)
+  happiness  Float    @default(100)
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BagInventory {
+  id       Int      @id @default(autoincrement())
+  userId   String
+  itemName String
+  quantity Int      @default(0)
+  addedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemName])
+}
+
+model House {
+  id         Int     @id @default(autoincrement())
+  name       String  @unique
+  price      Int
+  sleepBonus Float
+  hasFridge  Boolean
+  hasTap     Boolean
+  freeFood   Boolean
+
+  playerHouses PlayerHouse[]
+}
+
+model PlayerHouse {
+  userId      String   @id
+  houseId     Int
+  purchasedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  house House @relation(fields: [houseId], references: [id])
+}
+
+model Inventory {
+  id       Int    @id @default(autoincrement())
+  userId   String
+  itemName String
+  quantity Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemName])
+}
+
+model PlayerStats {
+  userId              String @id
+  blackjackWinsTotal  Int    @default(0)
+  rankedWins          Int    @default(0)
+  rankedLosses        Int    @default(0)
+  gamesPlayed         Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MatchHistory {
+  id          Int      @id @default(autoincrement())
+  player1Id   String
+  player2Id   String?
+  gameType    String
+  winnerId    String?
+  tokensDelta Int
+  playedAt    DateTime @default(now())
+
+  player1 User  @relation("Player1Matches", fields: [player1Id], references: [id])
+  player2 User? @relation("Player2Matches", fields: [player2Id], references: [id])
+  winner  User? @relation("WinnerMatches", fields: [winnerId], references: [id])
+}

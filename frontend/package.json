@@ -1,0 +1,29 @@
+{
+  "name": "casino-star-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "socket.io-client": "^4.7.5",
+    "zustand": "^4.5.4",
+    "framer-motion": "^11.3.24",
+    "howler": "^2.2.4",
+    "axios": "^1.7.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.3.4",
+    "typescript": "^5.5.3",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/howler": "^2.2.11"
+  }
+}
