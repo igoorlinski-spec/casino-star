@@ -160,7 +160,7 @@ const MainLayout: React.FC = () => {
                 cursor: 'default'
               }}>
                 <span className="token-icon">💵</span>
-                <span style={{ fontWeight: 'bold' }}>$ {user.dollars.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span style={{ fontWeight: 'bold' }}>$ {(user.dollars ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </>
           )}
