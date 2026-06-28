@@ -147,9 +147,20 @@ const MainLayout: React.FC = () => {
                   📜 Zadania
                 </button>
               </div>
-              <div className="token-counter" style={{ marginRight: '20px' }}>
+              <div className="token-counter" style={{ marginRight: '10px' }}>
                 <span className="token-icon">🪙</span>
                 <span style={{ fontWeight: 'bold', color: 'var(--gold)' }}>{user.tokens} żetonów</span>
+              </div>
+              <div className="token-counter" style={{ 
+                marginRight: '20px', 
+                background: 'linear-gradient(135deg, #1e522e 0%, #27ae60 100%)', 
+                border: '1px solid #2ecc71',
+                boxShadow: '0 0 10px rgba(46, 204, 113, 0.2)',
+                color: '#fff',
+                cursor: 'default'
+              }}>
+                <span className="token-icon">💵</span>
+                <span style={{ fontWeight: 'bold' }}>$ {user.dollars.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             </>
           )}
@@ -345,6 +356,7 @@ const MainLayout: React.FC = () => {
             <button className={`nav-tab ${activeTab === 'rozrywka' ? 'active' : ''}`} onClick={() => navigate('/game/rozrywka')}>Rozrywka 🔞</button>
             <button className={`nav-tab ${activeTab === 'sklep' ? 'active' : ''}`} onClick={() => navigate('/game/sklep')}>Sklep 🛝</button>
             <button className={`nav-tab ${activeTab === 'praca' ? 'active' : ''}`} onClick={() => navigate('/game/praca')}>Praca 💼</button>
+            <button className={`nav-tab ${activeTab === 'biznes' ? 'active' : ''}`} onClick={() => navigate('/game/biznes')}>Biznes 🏢</button>
             <button 
               className={`nav-tab ${activeTab === 'plock' ? 'active' : ''}`} 
               onClick={() => navigate('/game/plock')} 

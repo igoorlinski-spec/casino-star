@@ -9,6 +9,7 @@ export interface User {
   hasBag: boolean;
   tinderHearts: number;
   tinderBadge?: string;
+  dollars: number;
   playerHouse?: { houseId: number };
   playerStats?: { blackjackWinsTotal: number };
 }

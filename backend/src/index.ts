@@ -10,6 +10,7 @@ import shopRouter from './routes/shop';
 import workRouter from './routes/work';
 import leaderboardRouter from './routes/leaderboard';
 import gameRouter from './routes/game';
+import businessRouter from './routes/business';
 import { setupMatchmaking } from './sockets/matchmaking';
 
 dotenv.config();
@@ -42,6 +43,7 @@ app.use('/api/shop', shopRouter);
 app.use('/api/work', workRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/game', gameRouter);
+app.use('/api/business', businessRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

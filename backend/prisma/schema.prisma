@@ -22,6 +22,7 @@ model User {
   hasBag           Boolean  @default(false)
   tinderHearts     Int      @default(0)
   tinderBadge      String?  @default("")
+  dollars          Float    @default(0.0)
   createdAt        DateTime @default(now())
 
   playerNeeds   PlayerNeeds?
@@ -32,6 +33,9 @@ model User {
   matchesAsP1   MatchHistory[] @relation("Player1Matches")
   matchesAsP2   MatchHistory[] @relation("Player2Matches")
   matchesWon    MatchHistory[] @relation("WinnerMatches")
+  businesses    UserBusiness[]
+  realEstates   UserRealEstate[]
+  cars          UserCar[]
 }
 
 model PlayerNeeds {
@@ -112,3 +116,40 @@ model MatchHistory {
   player2 User? @relation("Player2Matches", fields: [player2Id], references: [id])
   winner  User? @relation("WinnerMatches", fields: [winnerId], references: [id])
 }
+
+model UserBusiness {
+  id              Int      @id @default(autoincrement())
+  userId          String
+  businessId      String
+  level           Int      @default(1)
+  hasManager      Boolean  @default(false)
+  lastCollectedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+}
+
+model UserRealEstate {
+  id              Int      @id @default(autoincrement())
+  userId          String
+  estateId        String
+  lastCollectedAt DateTime @default(now())
+  purchasedAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, estateId])
+}
+
+model UserCar {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  carId       String
+  purchasedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, carId])
+}
+

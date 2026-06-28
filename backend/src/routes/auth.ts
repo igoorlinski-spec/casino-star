@@ -200,6 +200,10 @@ router.get(
     try {
       const userId = req.user!.id;
 
+      // Przetwarzaj pasywny przychód
+      const { processPassiveIncome } = await import('../services/businessService');
+      await processPassiveIncome(userId);
+
       const user = await prisma.user.findUnique({
         where: { id: userId },
         include: {
