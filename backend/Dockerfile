@@ -8,6 +8,9 @@ COPY package*.json ./
 # Copy Prisma schema
 COPY prisma ./prisma/
 
+# Install OpenSSL for Prisma
+RUN apt-get update -y && apt-get install -y openssl
+
 # Install dependencies
 RUN npm ci
 
