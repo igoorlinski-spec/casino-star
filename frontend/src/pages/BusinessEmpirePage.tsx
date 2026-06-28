@@ -232,7 +232,7 @@ const BusinessEmpirePage: React.FC = () => {
           <h3 style={{ color: 'var(--gold)', marginBottom: 15 }}>🪙 KANTOR WALUTOWY</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
             Wymień żetony wygrane w kasynie na legalną gotówkę USD ($). <br/>
-            <strong>Kurs wymiany: 10 żetonów = $1.00 USD.</strong>
+            <strong>Kurs wymiany: 1 żeton = $1.00 USD.</strong>
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
@@ -240,10 +240,10 @@ const BusinessEmpirePage: React.FC = () => {
               <span style={{ color: '#aaa', fontWeight: 'bold' }}>Żetony:</span>
               <input
                 type="number"
-                min="10"
-                step="10"
+                min="1"
+                step="1"
                 value={exchangeAmount}
-                onChange={e => setExchangeAmount(Math.max(10, parseInt(e.target.value) || 0))}
+                onChange={e => setExchangeAmount(Math.max(1, parseInt(e.target.value) || 0))}
                 style={{
                   background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
                   color: 'var(--gold)', padding: '8px 12px', borderRadius: 8,
@@ -253,7 +253,7 @@ const BusinessEmpirePage: React.FC = () => {
             </div>
             
             <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '1rem' }}>
-              Otrzymasz: $ {(exchangeAmount / 10).toFixed(2)} USD
+              Otrzymasz: $ {exchangeAmount.toFixed(2)} USD
             </div>
 
             {exchangeMsg && <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeMsg}</div>}

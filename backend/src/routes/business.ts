@@ -93,8 +93,8 @@ router.post('/exchange', authMiddleware, async (req: Request, res: Response): Pr
       return;
     }
 
-    // Kurs wymiany: 10 żetonów = $1 USD
-    const dollarsGained = tokenAmount / 10;
+    // Kurs wymiany: 1 żeton = $1 USD
+    const dollarsGained = tokenAmount;
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
