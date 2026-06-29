@@ -81,22 +81,22 @@ function pickWinSymbol(): PlockSymbol {
 export function spinPlock(happiness: number = 100): PlockSpinResult {
   const happinessMult = Math.max(0.01, happiness / 100);
 
-  // Tabela prawdopodobieństwa – każda szansa zmniejszona o 6% (×0.94)
+  // Tabela prawdopodobieństwa – każda szansa zmniejszona łącznie o ~10% vs oryginał
   // Im większa wygrana tym mniejsza szansa.
   const winTable = [
-    { count: 4, rawChance: 0.1034 * happinessMult }, // 10.34% (było 11%)
-    { count: 5, rawChance: 0.0517 * happinessMult }, // 5.17%  (było 5.5%)
-    { count: 6, rawChance: 0.0329 * happinessMult }, // 3.29%  (było 3.5%)
-    { count: 7, rawChance: 0.016 * happinessMult },  // 1.60%  (było 1.7%)
-    { count: 8, rawChance: 0.0122 * happinessMult }, // 1.22%  (było 1.3%)
-    { count: 9, rawChance: 0.0066 * happinessMult }, // 0.66%  (było 0.7%)
-    { count: 10, rawChance: 0.0038 * happinessMult },// 0.38%  (było 0.4%)
-    { count: 11, rawChance: 0.0019 * happinessMult },// 0.19%  (było 0.2%)
-    { count: 12, rawChance: 0.00094 * happinessMult },// 0.094% (było 0.1%)
-    { count: 13, rawChance: 0.00047 * happinessMult },// 0.047% (było 0.05%)
-    { count: 14, rawChance: 0.000188 * happinessMult },// 0.019% (było 0.02%)
-    { count: 15, rawChance: 0.000094 * happinessMult },// 0.009% (było 0.01%)
-    { count: 16, rawChance: 0.000094 * happinessMult },// 0.009% (było 0.01%)
+    { count: 4, rawChance: 0.0993 * happinessMult }, // 9.93%  (−6%, −4%)
+    { count: 5, rawChance: 0.0496 * happinessMult }, // 4.96%
+    { count: 6, rawChance: 0.0316 * happinessMult }, // 3.16%
+    { count: 7, rawChance: 0.0154 * happinessMult }, // 1.54%
+    { count: 8, rawChance: 0.0117 * happinessMult }, // 1.17%
+    { count: 9, rawChance: 0.00634 * happinessMult },// 0.63%
+    { count: 10, rawChance: 0.00365 * happinessMult },// 0.37%
+    { count: 11, rawChance: 0.00182 * happinessMult },// 0.18%
+    { count: 12, rawChance: 0.0009 * happinessMult }, // 0.09%
+    { count: 13, rawChance: 0.00045 * happinessMult },// 0.045%
+    { count: 14, rawChance: 0.00018 * happinessMult },// 0.018%
+    { count: 15, rawChance: 0.00009 * happinessMult },// 0.009%
+    { count: 16, rawChance: 0.00009 * happinessMult },// 0.009% (SUPER JACKPOT)
   ];
 
   const roll = Math.random();
