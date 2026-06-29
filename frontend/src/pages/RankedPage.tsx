@@ -5,6 +5,42 @@ import { useGameStore } from '../stores/gameStore';
 import MatchmakingOverlay from '../components/MatchmakingOverlay';
 import PlayingCard from '../components/PlayingCard';
 
+const SYMBOL_EMOJI: Record<string, string> = {
+  cherry:  '🍒',
+  lemon:   '🍋',
+  star:    '⭐',
+  diamond: '💎',
+  seven:   '7️⃣',
+};
+
+const toEmoji = (s: string) => SYMBOL_EMOJI[s] ?? s;
+
+const SlotGrid: React.FC<{ reels: string[]; highlight?: boolean }> = ({ reels, highlight }) => (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 64px)',
+    gap: '6px',
+    background: 'rgba(0,0,0,0.6)',
+    padding: '12px',
+    borderRadius: '12px',
+    border: `2px solid ${highlight ? 'var(--gold)' : 'rgba(212,175,55,0.25)'}`,
+  }}>
+    {(reels.length === 9 ? reels : Array(9).fill('?')).map((sym, idx) => (
+      <div key={idx} style={{
+        width: '64px', height: '64px',
+        background: '#111',
+        borderRadius: '8px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '1.9rem',
+        border: '1px solid #2a2a2a',
+        boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.6)',
+      }}>
+        {toEmoji(sym)}
+      </div>
+    ))}
+  </div>
+);
+
 const RankedPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [gameType, setGameType] = useState<'blackjack' | 'slots'>('blackjack');
@@ -26,8 +62,8 @@ const RankedPage: React.FC = () => {
   const [isMyTurn, setIsMyTurn] = useState(false);
   
   // Slots Ranked (turn-based)
-  const [myReels, setMyReels] = useState<string[]>(['🍒', '🍋', '⭐']);
-  const [oppReels, setOppReels] = useState<string[]>(['🍒', '🍋', '⭐']);
+  const [myReels, setMyReels] = useState<string[]>(Array(9).fill('?'));
+  const [oppReels, setOppReels] = useState<string[]>(Array(9).fill('?'));
   const [myMult, setMyMult] = useState<number>(0);
   const [oppMult, setOppMult] = useState<number>(0);
 
@@ -255,31 +291,29 @@ const RankedPage: React.FC = () => {
                 Punkty: Ty ({points.player}) vs Przeciwnik ({points.opponent}) — (Do 3 zwycięstw)
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '20px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-                  <h3 style={{ color: 'var(--text-secondary)' }}>{rankedMatch.opponent}</h3>
-                  <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.5)', padding: '12px', borderRadius: '10px', border: '2px solid rgba(212,175,55,0.3)' }}>
-                    {oppReels.map((sym, idx) => (
-                      <div key={idx} style={{ width: '60px', height: '60px', background: '#111', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', border: '1px solid #333' }}>{sym}</div>
-                    ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '20px', justifyItems: 'center' }}>
+                {/* Opponent */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <h3 style={{ color: 'var(--text-secondary)', margin: 0 }}>{rankedMatch.opponent}</h3>
+                  <SlotGrid reels={oppReels} />
+                  <div style={{ fontWeight: 'bold', color: oppMult > 0 ? 'var(--gold)' : 'var(--text-secondary)' }}>
+                    Mnożnik: {oppMult > 0 ? `${oppMult}x` : '—'}
                   </div>
-                  <div style={{ fontWeight: 'bold', color: 'var(--gold)' }}>Uzyskany mnożnik: {oppMult}x</div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-                  <h3 style={{ color: 'var(--gold)' }}>Twoje Automaty</h3>
-                  <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.5)', padding: '12px', borderRadius: '10px', border: '2px solid var(--gold)' }}>
-                    {myReels.map((sym, idx) => (
-                      <div key={idx} style={{ width: '60px', height: '60px', background: '#111', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', border: '1px solid #333' }}>{sym}</div>
-                    ))}
+                {/* Player */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <h3 style={{ color: 'var(--gold)', margin: 0 }}>Twoje Automaty</h3>
+                  <SlotGrid reels={myReels} highlight />
+                  <div style={{ fontWeight: 'bold', color: myMult > 0 ? 'var(--gold)' : 'var(--text-secondary)' }}>
+                    Mnożnik: {myMult > 0 ? `${myMult}x` : '—'}
                   </div>
-                  <div style={{ fontWeight: 'bold', color: 'var(--gold)' }}>Uzyskany mnożnik: {myMult}x</div>
                 </div>
               </div>
 
               <div style={{ textAlign: 'center', marginTop: '30px' }}>
                 {isMyTurn ? (
-                  <button className="btn-gold btn-lg" onClick={spinRanked}>POCIĄGNIJ DŹWIGNIĘ (SPIN)</button>
+                  <button className="btn-gold btn-lg" onClick={spinRanked}>🎰 POCIĄGNIJ DŹWIGNIĘ</button>
                 ) : (
                   <div style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Oczekiwanie na ruch przeciwnika...</div>
                 )}
