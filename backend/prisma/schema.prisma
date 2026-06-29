@@ -36,6 +36,7 @@ model User {
   businesses    UserBusiness[]
   realEstates   UserRealEstate[]
   cars          UserCar[]
+  stocks        StockHolding[]
 }
 
 model PlayerNeeds {
@@ -153,3 +154,28 @@ model UserCar {
   @@unique([userId, carId])
 }
 
+// ── GIEŁDA ──────────────────────────────────────────────────────────────────
+
+model Stock {
+  id           String   @id   // np. "mcronalds"
+  name         String
+  emoji        String
+  price        Float         // cena aktualna
+  initialPrice Float         // cena startowa (do obliczenia max 40x / min 10%)
+  lastUpdatedAt DateTime @default(now())
+
+  holdings StockHolding[]
+}
+
+model StockHolding {
+  id          Int    @id @default(autoincrement())
+  userId      String
+  stockId     String
+  shares      Float          // liczba akcji
+  avgBuyPrice Float          // średnia cena zakupu
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock Stock @relation(fields: [stockId], references: [id])
+
+  @@unique([userId, stockId])
+}

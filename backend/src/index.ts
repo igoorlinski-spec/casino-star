@@ -11,7 +11,9 @@ import workRouter from './routes/work';
 import leaderboardRouter from './routes/leaderboard';
 import gameRouter from './routes/game';
 import businessRouter from './routes/business';
+import stocksRouter from './routes/stocks';
 import { setupMatchmaking } from './sockets/matchmaking';
+import { seedStocks, startStockTicker } from './services/stockService';
 
 dotenv.config();
 
@@ -49,6 +51,7 @@ app.use('/api/work', workRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/game', gameRouter);
 app.use('/api/business', businessRouter);
+app.use('/api/stocks', stocksRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -102,7 +105,7 @@ async function seedHouses() {
   for (const house of houses) {
     await prisma.house.upsert({
       where: { name: house.name },
-      update: {},
+      update: { price: house.price, sleepBonus: house.sleepBonus, hasFridge: house.hasFridge, hasTap: house.hasTap, freeFood: house.freeFood },
       create: house,
     });
   }
@@ -110,11 +113,15 @@ async function seedHouses() {
   console.log('✅ Houses seeded successfully');
 }
 
+
+
 const PORT = process.env.PORT || 4000;
 
 httpServer.listen(PORT, async () => {
   console.log(`🚀 Casino Star backend running on port ${PORT}`);
   await seedHouses();
+  await seedStocks();
+  startStockTicker();
 });
 
 process.on('SIGTERM', async () => {

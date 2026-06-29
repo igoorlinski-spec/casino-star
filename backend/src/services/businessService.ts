@@ -67,19 +67,19 @@ export const REAL_ESTATE_CATALOG: Record<string, RealEstateDef> = {
   penthouse: {
     id: 'penthouse',
     name: 'Luksusowy Penthouse 🏙️',
-    price: 50000,
+    price: 60000,
     incomePerMin: 80,
   },
   mansion: {
     id: 'mansion',
     name: 'Rezydencja z Basenem 🏰',
-    price: 100000,
+    price: 250000,
     incomePerMin: 450,
   },
   private_island: {
     id: 'private_island',
     name: 'Prywatna Wyspa 🏝️',
-    price: 1000000,
+    price: 2000000,
     incomePerMin: 3200,
   },
 };

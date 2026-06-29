@@ -12,6 +12,7 @@ import RankingPage from './pages/RankingPage';
 import EntertainmentPage from './pages/EntertainmentPage';
 import PlockEventPage from './pages/PlockEventPage';
 import BusinessEmpirePage from './pages/BusinessEmpirePage';
+import StockMarketPage from './pages/StockMarketPage';
 import { useAuthStore } from './stores/authStore';
 
 const ProtectedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
@@ -49,6 +50,7 @@ const App: React.FC = () => {
         <Route path="sklep" element={<ShopPage />} />
         <Route path="praca" element={<WorkPage />} />
         <Route path="biznes" element={<BusinessEmpirePage />} />
+        <Route path="gielda" element={<StockMarketPage />} />
         <Route path="plock" element={<PlockEventPage />} />
         <Route path="ranking" element={<RankingPage />} />
         <Route path="*" element={<Navigate to="kasyno" replace />} />

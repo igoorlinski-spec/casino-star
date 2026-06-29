@@ -357,6 +357,16 @@ const MainLayout: React.FC = () => {
             <button className={`nav-tab ${activeTab === 'sklep' ? 'active' : ''}`} onClick={() => navigate('/game/sklep')}>Sklep 🛝</button>
             <button className={`nav-tab ${activeTab === 'praca' ? 'active' : ''}`} onClick={() => navigate('/game/praca')}>Praca 💼</button>
             <button className={`nav-tab ${activeTab === 'biznes' ? 'active' : ''}`} onClick={() => navigate('/game/biznes')}>Biznes 🏢</button>
+            <button
+              className={`nav-tab ${activeTab === 'gielda' ? 'active' : ''}`}
+              onClick={() => navigate('/game/gielda')}
+              style={{
+                borderBottomColor: activeTab === 'gielda' ? '#3498db' : 'transparent',
+                color: activeTab === 'gielda' ? '#3498db' : '#7fb3d3',
+              }}
+            >
+              📈 Giełda
+            </button>
             <button 
               className={`nav-tab ${activeTab === 'plock' ? 'active' : ''}`} 
               onClick={() => navigate('/game/plock')} 
