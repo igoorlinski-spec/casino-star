@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import socket from '../socket/socket';
 import { useAuthStore } from '../stores/authStore';
 import { useGameStore } from '../stores/gameStore';
@@ -103,6 +103,16 @@ const RankedPage: React.FC = () => {
   const [racesRunnerPositions, setRacesRunnerPositions] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
   const [selectedRacesRunner, setSelectedRacesRunner] = useState<number | null>(null);
   const [raceAnimRunning, setRaceAnimRunning] = useState(false);
+  const raceAnimRunningRef = useRef(false);
+  const racesIntervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (racesIntervalRef.current) {
+        clearInterval(racesIntervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!rankedMatch) return;
@@ -192,10 +202,12 @@ const RankedPage: React.FC = () => {
     // ── Races Events ─────────────────────────────────────────────────────────
     socket.on('rankedRacesUpdate', (data: any) => {
       setRacesRoomState(data);
-      if (data.status === 'racing' && !raceAnimRunning) {
+      if (data.status === 'racing' && !raceAnimRunningRef.current) {
+        raceAnimRunningRef.current = true;
         setRaceAnimRunning(true);
         setRacesWinningRunner(data.winningRunner);
         let currentPos = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        if (racesIntervalRef.current) clearInterval(racesIntervalRef.current);
         const interval = setInterval(() => {
           let reachedFinish = false;
           currentPos = {
@@ -213,7 +225,10 @@ const RankedPage: React.FC = () => {
           setRacesRunnerPositions({ ...currentPos });
 
           if (reachedFinish) {
-            clearInterval(interval);
+            if (racesIntervalRef.current) {
+              clearInterval(racesIntervalRef.current);
+              racesIntervalRef.current = null;
+            }
             const finalPos: Record<number, number> = {};
             RUNNERS.forEach(r => {
               finalPos[r.id] = r.id === data.winningRunner ? 100 : Math.min(94, currentPos[r.id as 1|2|3|4|5]);
@@ -221,6 +236,7 @@ const RankedPage: React.FC = () => {
             setRacesRunnerPositions(finalPos);
           }
         }, 100);
+        racesIntervalRef.current = interval;
       }
     });
 
@@ -247,6 +263,11 @@ const RankedPage: React.FC = () => {
         setRacesWinnerResults(null);
         setSelectedRacesRunner(null);
         setRaceAnimRunning(false);
+        raceAnimRunningRef.current = false;
+        if (racesIntervalRef.current) {
+          clearInterval(racesIntervalRef.current);
+          racesIntervalRef.current = null;
+        }
         setRacesRunnerPositions({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
       }, 5000);
     });
@@ -597,7 +618,7 @@ const RankedPage: React.FC = () => {
                               width: 44, height: 44, borderRadius: '50%', objectFit: 'cover',
                               border: `2px solid ${runner.color}`,
                               filter: isWinner && racesRoomState.status === 'done' ? 'drop-shadow(0 0 10px #f1c40f)' : 'none',
-                              animation: racesRoomState.status === 'racing' ? 'float-up 0.5s infinite alternate' : 'none'
+                              animation: raceAnimRunning ? 'float-up 0.5s infinite alternate' : 'none'
                             }} />
                             <span style={{
                               fontSize: '0.75rem', fontWeight: 700,

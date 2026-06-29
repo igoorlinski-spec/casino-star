@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/api';
 import { useAuthStore } from '../stores/authStore';
 import { useGameStore } from '../stores/gameStore';
@@ -205,6 +205,15 @@ const CasinoPage: React.FC = () => {
   const [runnerPositions, setRunnerPositions] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
   const [raceResultMsg, setRaceResultMsg] = useState<string | null>(null);
   const [winningRunnerId, setWinningRunnerId] = useState<number | null>(null);
+  const raceIntervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (raceIntervalRef.current) {
+        clearInterval(raceIntervalRef.current);
+      }
+    };
+  }, [mode]);
 
   const depleted = needs.sleep <= 0 || needs.hunger <= 0 || needs.hydration <= 0 || (needs.happiness ?? 100) <= 0;
   const bumpAnim = () => setAnimKey(k => k + 1);
@@ -366,6 +375,8 @@ const CasinoPage: React.FC = () => {
 
       // Rozpocznij animację ruchu zawodniczek
       let currentPos = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      if (raceIntervalRef.current) clearInterval(raceIntervalRef.current);
+      
       const interval = setInterval(() => {
         let reachedFinish = false;
         
@@ -387,7 +398,10 @@ const CasinoPage: React.FC = () => {
         setRunnerPositions({ ...currentPos });
 
         if (reachedFinish) {
-          clearInterval(interval);
+          if (raceIntervalRef.current) {
+            clearInterval(raceIntervalRef.current);
+            raceIntervalRef.current = null;
+          }
           
           // Ustaw ostateczne pozycje (zwycięzca na 100, reszta z tyłu)
           const finalPos: Record<number, number> = {};
@@ -407,6 +421,7 @@ const CasinoPage: React.FC = () => {
           setRaceRunning(false);
         }
       }, 100);
+      raceIntervalRef.current = interval;
 
     } catch (e) {
       setRaceRunning(false);
