@@ -30,8 +30,8 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     name: 'Kawiarnia ☕',
     basePrice: 1000,
     baseIncomePerMin: 5,
-    upgradeMultiplier: 1.5,
-    incomeMultiplier: 1.4,
+    upgradeMultiplier: 2.0,
+    incomeMultiplier: 1.3,
     managerPrice: 10000,
   },
   restaurant: {
@@ -39,8 +39,8 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     name: 'Restauracja 🍔',
     basePrice: 5000,
     baseIncomePerMin: 35,
-    upgradeMultiplier: 1.6,
-    incomeMultiplier: 1.45,
+    upgradeMultiplier: 2.0,
+    incomeMultiplier: 1.3,
     managerPrice: 50000,
   },
   supermarket: {
@@ -48,8 +48,8 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     name: 'Supermarket 🛒',
     basePrice: 80000,
     baseIncomePerMin: 200,
-    upgradeMultiplier: 1.7,
-    incomeMultiplier: 1.5,
+    upgradeMultiplier: 2.0,
+    incomeMultiplier: 1.3,
     managerPrice: 800000,
   },
   bank: {
@@ -57,8 +57,8 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     name: 'Prywatny Bank 🏦',
     basePrice: 120000,
     baseIncomePerMin: 1500,
-    upgradeMultiplier: 1.8,
-    incomeMultiplier: 1.55,
+    upgradeMultiplier: 2.0,
+    incomeMultiplier: 1.3,
     managerPrice: 1200000,
   },
 };
