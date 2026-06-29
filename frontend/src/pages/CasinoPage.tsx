@@ -431,21 +431,38 @@ const CrashGame: React.FC<{
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 700 }}>STAWKA (ŻETONY)</span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {[10, 50, 100, 500].map(val => (
-              <button
-                key={val}
-                disabled={isPlaying}
-                onClick={() => { sfxClick(); setBet(val); }}
-                style={{
-                  padding: '6px 12px', border: `1px solid ${bet === val ? '#2ecc71' : 'rgba(255,255,255,0.1)'}`,
-                  borderRadius: 6, background: bet === val ? 'rgba(46,204,113,0.1)' : 'transparent',
-                  color: bet === val ? '#2ecc71' : '#aaa', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem'
-                }}
-              >
-                {val}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input
+              type="number"
+              min={1}
+              disabled={isPlaying}
+              value={bet}
+              onChange={(e) => {
+                const val = Math.max(1, parseInt(e.target.value) || 0);
+                setBet(val);
+              }}
+              style={{
+                width: 90, padding: '6px 10px', background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8,
+                color: '#fff', fontSize: '0.9rem', fontWeight: 700, outline: 'none'
+              }}
+            />
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[10, 50, 100, 500].map(val => (
+                <button
+                  key={val}
+                  disabled={isPlaying}
+                  onClick={() => { sfxClick(); setBet(val); }}
+                  style={{
+                    padding: '6px 12px', border: `1px solid ${bet === val ? '#2ecc71' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: 6, background: bet === val ? 'rgba(46,204,113,0.1)' : 'transparent',
+                    color: bet === val ? '#2ecc71' : '#aaa', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem'
+                  }}
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
