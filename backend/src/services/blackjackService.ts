@@ -96,15 +96,19 @@ export function isBlackjack(hand: Hand): boolean {
 // Game actions
 // ────────────────────────────────────────────────────────────────────────────
 
-export function startGame(userId: string, bet: number): GameSession {
-  const deck = shuffle(createDeck());
+export function drawCard(): Card {
+  const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
+  const rank = RANKS[Math.floor(Math.random() * RANKS.length)];
+  return { rank, suit };
+}
 
-  const playerHand: Hand = [deck.pop()!, deck.pop()!];
-  const dealerHand: Hand = [deck.pop()!, deck.pop()!];
+export function startGame(userId: string, bet: number): GameSession {
+  const playerHand: Hand = [drawCard(), drawCard()];
+  const dealerHand: Hand = [drawCard(), drawCard()];
 
   const session: GameSession = {
     userId,
-    deck,
+    deck: [],
     playerHand,
     dealerHand,
     bet,
@@ -119,9 +123,7 @@ export function hit(userId: string): GameSession | null {
   const session = activeSessions.get(userId);
   if (!session) return null;
 
-  const card = session.deck.pop();
-  if (!card) return null;
-
+  const card = drawCard();
   session.playerHand.push(card);
 
   // If bust, remove session
@@ -142,18 +144,20 @@ export function stand(
 
   // Dealer draws until >= 17
   while (getHandValue(session.dealerHand) < 17) {
-    let card: Card | undefined = session.deck.pop();
-    if (!card) break;
+    let card = drawCard();
 
     // Efekt zmęczenia: krupier unika fura (50% szansy)
     if (session.sleep && session.sleep < 30 && Math.random() < 0.5) {
       const nextHand = [...session.dealerHand, card];
       if (getHandValue(nextHand) > 21) {
-        const safeCardIndex = session.deck.findIndex(c => getHandValue([...session.dealerHand, c]) <= 21);
-        if (safeCardIndex !== -1) {
-          const safeCard = session.deck.splice(safeCardIndex, 1)[0];
-          session.deck.push(card);
-          card = safeCard;
+        const safeRanks = RANKS.filter(r => {
+          const testCard = { rank: r, suit: 'hearts' as Suit };
+          return getHandValue([...session.dealerHand, testCard]) <= 21;
+        });
+        if (safeRanks.length > 0) {
+          const safeRank = safeRanks[Math.floor(Math.random() * safeRanks.length)];
+          const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
+          card = { rank: safeRank, suit };
         }
       }
     }
@@ -176,26 +180,28 @@ export function doubleDown(
   session.doubled = true;
 
   // Draw exactly one card
-  const card = session.deck.pop();
-  if (card) session.playerHand.push(card);
+  const card = drawCard();
+  session.playerHand.push(card);
 
   // Then stand
   activeSessions.delete(userId);
 
   // Dealer draws until >= 17
   while (getHandValue(session.dealerHand) < 17) {
-    let next: Card | undefined = session.deck.pop();
-    if (!next) break;
+    let next = drawCard();
 
     // Efekt zmęczenia: krupier unika fura (50% szansy)
     if (session.sleep && session.sleep < 30 && Math.random() < 0.5) {
       const nextHand = [...session.dealerHand, next];
       if (getHandValue(nextHand) > 21) {
-        const safeCardIndex = session.deck.findIndex(c => getHandValue([...session.dealerHand, c]) <= 21);
-        if (safeCardIndex !== -1) {
-          const safeCard = session.deck.splice(safeCardIndex, 1)[0];
-          session.deck.push(next);
-          next = safeCard;
+        const safeRanks = RANKS.filter(r => {
+          const testCard = { rank: r, suit: 'hearts' as Suit };
+          return getHandValue([...session.dealerHand, testCard]) <= 21;
+        });
+        if (safeRanks.length > 0) {
+          const safeRank = safeRanks[Math.floor(Math.random() * safeRanks.length)];
+          const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
+          next = { rank: safeRank, suit };
         }
       }
     }
