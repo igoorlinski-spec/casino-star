@@ -567,16 +567,7 @@ async function resolveRankedRace(io: Server, room: RankedRacesRoom) {
 // ────────────────────────────────────────────────────────────────────────────
 
 export function setupMatchmaking(io: Server): void {
-  // Blokada socketów - Przerwa Techniczna
-  io.use((socket, next) => {
-    next(new Error('Przerwa techniczna serwera. Trwają prace konserwacyjne.'));
-  });
 
-  // Odłącz wszystkich aktualnie podłączonych użytkowników
-  io.sockets.sockets.forEach((socket) => {
-    socket.emit('error', { message: 'Przerwa techniczna serwera.' });
-    socket.disconnect(true);
-  });
 
   io.on('connection', (socket: Socket) => {
     console.log(`Socket connected: ${socket.id}`);
