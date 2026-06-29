@@ -168,11 +168,12 @@ model Stock {
 }
 
 model StockHolding {
-  id          Int    @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   userId      String
   stockId     String
   shares      Float          // liczba akcji
   avgBuyPrice Float          // średnia cena zakupu
+  boughtAt    DateTime @default(now()) // czas zakupu – auto-sprzedaż po 10 min
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   stock Stock @relation(fields: [stockId], references: [id])

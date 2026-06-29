@@ -84,11 +84,11 @@ router.post('/buy', async (req: Request, res: Response): Promise<void> => {
     const newAvg = (existing.avgBuyPrice * existing.shares + stock.price * sharesBought) / newShares;
     await prisma.stockHolding.update({
       where: { userId_stockId: { userId, stockId } },
-      data: { shares: newShares, avgBuyPrice: newAvg },
+      data: { shares: newShares, avgBuyPrice: newAvg, boughtAt: new Date() }, // reset timera przy dokupowaniu
     });
   } else {
     await prisma.stockHolding.create({
-      data: { userId, stockId, shares: sharesBought, avgBuyPrice: stock.price },
+      data: { userId, stockId, shares: sharesBought, avgBuyPrice: stock.price, boughtAt: new Date() },
     });
   }
 

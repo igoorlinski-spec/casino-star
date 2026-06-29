@@ -98,8 +98,46 @@ export function startStockTicker(): void {
   setInterval(async () => {
     try {
       await tickStocks();
+      await autoSellExpiredHoldings();
     } catch (err) {
       console.error('Stock tick error:', err);
     }
   }, 60_000);
+}
+
+// ── Auto-sprzedaż po 10 minutach ─────────────────────────────────────────────
+// Każde holding starsze niż 10 min jest automatycznie sprzedawane po bieżącej cenie.
+export async function autoSellExpiredHoldings(): Promise<void> {
+  const TEN_MIN_MS = 10 * 60 * 1000;
+  const cutoff = new Date(Date.now() - TEN_MIN_MS);
+
+  // Znajdź wszystkie wygasłe pozycje
+  const expired = await prisma.stockHolding.findMany({
+    where: { boughtAt: { lt: cutoff } },
+    include: { stock: true },
+  });
+
+  if (expired.length === 0) return;
+
+  for (const holding of expired) {
+    const tokensEarned = Math.floor(holding.shares * holding.stock.price);
+    const profitLoss = tokensEarned - Math.floor(holding.shares * holding.avgBuyPrice);
+    const sign = profitLoss >= 0 ? '+' : '';
+
+    // Wypłać żetony graczowi i usuń pozycję
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: holding.userId },
+        data: { tokens: { increment: tokensEarned } },
+      }),
+      prisma.stockHolding.delete({
+        where: { id: holding.id },
+      }),
+    ]);
+
+    console.log(
+      `⏰ Auto-sell: ${holding.userId} → ${holding.stock.name} ` +
+      `${holding.shares.toFixed(4)} akcji @ ${holding.stock.price} = ${tokensEarned} 🪙 (${sign}${profitLoss})`
+    );
+  }
 }
