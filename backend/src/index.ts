@@ -45,6 +45,16 @@ app.use(
 );
 app.use(express.json());
 
+// Blokada serwera - Przerwa Techniczna
+app.use((req, res, next) => {
+  if (req.path === '/api/health') {
+    return next();
+  }
+  res.status(503).json({
+    error: 'Przerwa techniczna serwera. Trwają prace konserwacyjne. Zapraszamy wkrótce!'
+  });
+});
+
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/shop', shopRouter);
