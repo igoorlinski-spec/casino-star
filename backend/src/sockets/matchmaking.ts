@@ -79,6 +79,25 @@ function generateRoomId(): string {
 // Ranked Blackjack helpers
 // ────────────────────────────────────────────────────────────────────────────
 
+function broadcastBlackjackRoundState(io: Server, room: RankedBlackjackRoom) {
+  io.to(room.roomId).emit('rankedBlackjackRound', {
+    player1: { 
+      nickname: room.player1.nickname, 
+      score: room.player1.score, 
+      handSize: room.player1.hand.length 
+    },
+    player2: room.player2
+      ? { 
+          nickname: room.player2.nickname, 
+          score: room.player2.score, 
+          handSize: room.player2.hand.length 
+        }
+      : null,
+    dealerVisible: room.dealerHand[0],
+    yourTurn: room.currentTurn,
+  });
+}
+
 function startRankedBlackjackRound(
   io: Server,
   room: RankedBlackjackRoom
@@ -95,14 +114,8 @@ function startRankedBlackjackRound(
 
   room.currentTurn = room.player1.userId;
 
-  io.to(room.roomId).emit('rankedBlackjackRound', {
-    player1: { nickname: room.player1.nickname, score: room.player1.score, handSize: p1Hand.length },
-    player2: room.player2
-      ? { nickname: room.player2.nickname, score: room.player2.score, handSize: p2Hand.length }
-      : null,
-    dealerVisible: room.dealerHand[0],
-    yourTurn: room.player1.userId,
-  });
+  // Broadcast state to everyone in the room
+  broadcastBlackjackRoundState(io, room);
 
   // Player 1 gets their hand
   io.to(room.player1.socketId).emit('yourHand', {
@@ -453,16 +466,22 @@ export function setupMatchmaking(io: Server): void {
       const handValue = getHandValue(playerInRoom.hand);
 
       socket.emit('yourHand', { hand: playerInRoom.hand, handValue });
+      broadcastBlackjackRoundState(io, room);
 
       if (handValue > 21) {
         // Auto-stand on bust
         socket.emit('rankedBust', { handValue });
-        // Switch turn or resolve
+        
         if (!room.isBot) {
-          const otherPlayer = isP1 ? room.player2 : room.player1;
-          if (otherPlayer) {
-            room.currentTurn = otherPlayer.userId;
-            io.to(otherPlayer.socketId).emit('yourTurn');
+          if (isP1) {
+            if (room.player2) {
+              room.currentTurn = room.player2.userId;
+              broadcastBlackjackRoundState(io, room);
+            } else {
+              resolveRankedBlackjackRound(io, room);
+            }
+          } else {
+            resolveRankedBlackjackRound(io, room);
           }
         } else {
           botPlayBlackjack(io, room);
@@ -485,15 +504,15 @@ export function setupMatchmaking(io: Server): void {
       const isP1 = room.player1.userId === payload.id;
 
       if (room.isBot) {
-        // Resolve immediately with bot
         botPlayBlackjack(io, room);
       } else {
-        // Switch turn to other player
-        const otherPlayer = isP1 ? room.player2 : room.player1;
-        if (otherPlayer && otherPlayer.userId !== 'bot') {
-          room.currentTurn = otherPlayer.userId;
-          io.to(otherPlayer.socketId).emit('yourTurn');
-          // If other player already stood, resolve
+        if (isP1) {
+          if (room.player2) {
+            room.currentTurn = room.player2.userId;
+            broadcastBlackjackRoundState(io, room);
+          } else {
+            resolveRankedBlackjackRound(io, room);
+          }
         } else {
           resolveRankedBlackjackRound(io, room);
         }
