@@ -4,6 +4,8 @@ import { useAuthStore } from '../stores/authStore';
 let baseURL = import.meta.env.VITE_API_URL || '/api';
 if (baseURL && baseURL.startsWith('http') && !baseURL.endsWith('/api') && !baseURL.endsWith('/api/')) {
   baseURL = baseURL.endsWith('/') ? `${baseURL}api` : `${baseURL}/api`;
+} else if (window.location.hostname.includes('onrender.com') && (!baseURL || baseURL === '/api')) {
+  baseURL = 'https://casino-star-backend.onrender.com/api';
 }
 
 const api = axios.create({
