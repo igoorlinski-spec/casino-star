@@ -25,6 +25,12 @@ export const STOCKS: StockDef[] = [
   { id: 'cryptocorp', name: 'CryptoCorp',        emoji: '🪙', initialPrice: 60   },
   { id: 'nikair',     name: 'Nik-Air',           emoji: '👟', initialPrice: 170  },
   { id: 'casinostar', name: 'CasinoStar SA',     emoji: '🌟', initialPrice: 500  },
+  // ── 5 GIGANTÓW ────────────────────────────────────────────────────────────
+  { id: 'mikrosoft',  name: 'MikroSoft',         emoji: '🪟', initialPrice: 1200 },
+  { id: 'oilrex',     name: 'OilRex Corp',       emoji: '🛢️', initialPrice: 980  },
+  { id: 'spacexstar', name: 'SpaceX-Star',       emoji: '🚀', initialPrice: 2500 },
+  { id: 'bankgold',   name: 'BankGold Int.',     emoji: '🏦', initialPrice: 1800 },
+  { id: 'pharmamax',  name: 'PharmaMax',         emoji: '💊', initialPrice: 1500 },
 ];
 
 // ── Algorytm zmiany ceny (per minuta) ────────────────────────────────────────

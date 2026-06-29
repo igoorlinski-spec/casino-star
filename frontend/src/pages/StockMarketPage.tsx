@@ -138,9 +138,7 @@ const StockMarketPage: React.FC = () => {
           📈 GIEŁDA CASINO STAR 📉
         </h2>
         <p style={{ color: '#aaa', fontStyle: 'italic', fontSize: '0.95rem', marginBottom: 16 }}>
-          10 największych spółek świata. Ceny zmieniają się co minutę, nawet gdy jesteś offline.
-          <br />
-          <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>⚠️ Rynek jest obciążony na niekorzyść gracza — większość portfeli topnieje!</span>
+          15 największych spółek świata. Ceny zmieniają się co minutę, nawet gdy jesteś offline.
         </p>
         <div style={{ display: 'inline-flex', gap: 24, background: 'rgba(0,0,0,0.5)', padding: '10px 30px', borderRadius: 12, border: '1px solid rgba(52,152,219,0.3)' }}>
           <span style={{ color: '#aaa' }}>Twoje żetony:</span>
