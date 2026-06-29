@@ -22,12 +22,15 @@ export const prisma = new PrismaClient();
 const app = express();
 const httpServer = createServer(app);
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://casino-star-frontend.onrender.com'
+];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: (origin, callback) => {
-      // Dynamicznie zezwól na origin (wymagane przy credentials: true)
-      callback(null, origin || '*');
-    },
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -36,9 +39,7 @@ const io = new Server(httpServer, {
 // Middleware
 app.use(
   cors({
-    origin: (origin, callback) => {
-      callback(null, origin || '*');
-    },
+    origin: allowedOrigins,
     credentials: true,
   })
 );

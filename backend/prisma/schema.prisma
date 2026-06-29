@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,45 +8,43 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  nickname         String   @unique @db.VarChar(10)
+  id               String           @id @default(cuid())
+  email            String           @unique
+  nickname         String           @unique @db.VarChar(10)
   passwordHash     String
-  tokens           Int      @default(0)
-  skinColor        String   @default("light")
-  hairStyle        String   @default("short")
-  characterCreated Boolean  @default(false)
-  hasBag           Boolean  @default(false)
-  tinderHearts     Int      @default(0)
-  tinderBadge      String?  @default("")
-  dollars          Float    @default(0.0)
-  burgerMultLevel  Int      @default(0) // x2 per level, max 3
-  burgerBonusLevel Int      @default(0) // +1 per level, max 5
-  createdAt        DateTime @default(now())
-
-  playerNeeds   PlayerNeeds?
-  playerHouse   PlayerHouse?
-  playerStats   PlayerStats?
-  inventory     Inventory[]
-  bagInventory  BagInventory[]
-  matchesAsP1   MatchHistory[] @relation("Player1Matches")
-  matchesAsP2   MatchHistory[] @relation("Player2Matches")
-  matchesWon    MatchHistory[] @relation("WinnerMatches")
-  businesses    UserBusiness[]
-  realEstates   UserRealEstate[]
-  cars          UserCar[]
-  stocks        StockHolding[]
+  tokens           Int              @default(0)
+  skinColor        String           @default("light")
+  hairStyle        String           @default("short")
+  characterCreated Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  hasBag           Boolean          @default(false)
+  tinderHearts     Int              @default(0)
+  tinderBadge      String?          @default("")
+  dollars          Float            @default(0.0)
+  burgerBonusLevel Int              @default(0)
+  burgerMultLevel  Int              @default(0)
+  bagInventory     BagInventory[]
+  inventory        Inventory[]
+  matchesAsP1      MatchHistory[]   @relation("Player1Matches")
+  matchesAsP2      MatchHistory[]   @relation("Player2Matches")
+  matchesWon       MatchHistory[]   @relation("WinnerMatches")
+  playerHouse      PlayerHouse?
+  playerNeeds      PlayerNeeds?
+  playerStats      PlayerStats?
+  stocks           StockHolding[]
+  businesses       UserBusiness[]
+  cars             UserCar[]
+  realEstates      UserRealEstate[]
 }
 
 model PlayerNeeds {
-  userId     String   @id
-  sleep      Float    @default(100)
-  hunger     Float    @default(100)
-  hydration  Float    @default(100)
-  happiness  Float    @default(100)
-  updatedAt  DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @id
+  sleep     Float    @default(100)
+  hunger    Float    @default(100)
+  hydration Float    @default(100)
+  updatedAt DateTime @updatedAt
+  happiness Float    @default(100)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model BagInventory {
@@ -58,21 +53,19 @@ model BagInventory {
   itemName String
   quantity Int      @default(0)
   addedAt  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemName])
 }
 
 model House {
-  id         Int     @id @default(autoincrement())
-  name       String  @unique
-  price      Int
-  sleepBonus Float
-  hasFridge  Boolean
-  hasTap     Boolean
-  freeFood   Boolean
-
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  price        Int
+  sleepBonus   Float
+  hasFridge    Boolean
+  hasTap       Boolean
+  freeFood     Boolean
   playerHouses PlayerHouse[]
 }
 
@@ -80,9 +73,8 @@ model PlayerHouse {
   userId      String   @id
   houseId     Int
   purchasedAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  house House @relation(fields: [houseId], references: [id])
+  house       House    @relation(fields: [houseId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Inventory {
@@ -90,20 +82,18 @@ model Inventory {
   userId   String
   itemName String
   quantity Int    @default(0)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemName])
 }
 
 model PlayerStats {
-  userId              String @id
-  blackjackWinsTotal  Int    @default(0)
-  rankedWins          Int    @default(0)
-  rankedLosses        Int    @default(0)
-  gamesPlayed         Int    @default(0)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String @id
+  blackjackWinsTotal Int    @default(0)
+  rankedWins         Int    @default(0)
+  rankedLosses       Int    @default(0)
+  gamesPlayed        Int    @default(0)
+  user               User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MatchHistory {
@@ -114,10 +104,9 @@ model MatchHistory {
   winnerId    String?
   tokensDelta Int
   playedAt    DateTime @default(now())
-
-  player1 User  @relation("Player1Matches", fields: [player1Id], references: [id])
-  player2 User? @relation("Player2Matches", fields: [player2Id], references: [id])
-  winner  User? @relation("WinnerMatches", fields: [winnerId], references: [id])
+  player1     User     @relation("Player1Matches", fields: [player1Id], references: [id])
+  player2     User?    @relation("Player2Matches", fields: [player2Id], references: [id])
+  winner      User?    @relation("WinnerMatches", fields: [winnerId], references: [id])
 }
 
 model UserBusiness {
@@ -127,8 +116,7 @@ model UserBusiness {
   level           Int      @default(1)
   hasManager      Boolean  @default(false)
   lastCollectedAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, businessId])
 }
@@ -139,8 +127,7 @@ model UserRealEstate {
   estateId        String
   lastCollectedAt DateTime @default(now())
   purchasedAt     DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, estateId])
 }
@@ -150,35 +137,30 @@ model UserCar {
   userId      String
   carId       String
   purchasedAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, carId])
 }
 
-// ── GIEŁDA ──────────────────────────────────────────────────────────────────
-
 model Stock {
-  id           String   @id   // np. "mcronalds"
-  name         String
-  emoji        String
-  price        Float         // cena aktualna
-  initialPrice Float         // cena startowa (do obliczenia max 40x / min 10%)
-  lastUpdatedAt DateTime @default(now())
-
-  holdings StockHolding[]
+  id            String         @id
+  name          String
+  emoji         String
+  price         Float
+  initialPrice  Float
+  lastUpdatedAt DateTime       @default(now())
+  holdings      StockHolding[]
 }
 
 model StockHolding {
   id          Int      @id @default(autoincrement())
   userId      String
   stockId     String
-  shares      Float          // liczba akcji
-  avgBuyPrice Float          // średnia cena zakupu
-  boughtAt    DateTime @default(now()) // czas zakupu – auto-sprzedaż po 10 min
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stock Stock @relation(fields: [stockId], references: [id])
+  shares      Float
+  avgBuyPrice Float
+  boughtAt    DateTime @default(now())
+  stock       Stock    @relation(fields: [stockId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, stockId])
 }
