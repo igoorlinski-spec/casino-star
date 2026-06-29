@@ -508,4 +508,86 @@ function getOutcomeMessage(outcome: string): string {
   }
 }
 
+// POST /api/game/race/bet - Wyścigi: 5 zawodniczek, 20% szans, wygrana x5 stawki
+router.post('/race/bet', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { bet, runner } = req.body; // runner to liczba od 1 do 5
+
+    if (!bet || typeof bet !== 'number' || bet <= 0) {
+      res.status(400).json({ error: 'Nieprawidłowa stawka' });
+      return;
+    }
+
+    if (!runner || typeof runner !== 'number' || runner < 1 || runner > 5) {
+      res.status(400).json({ error: 'Musisz wybrać zawodniczkę (1-5)' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { tokens: true, playerNeeds: true }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      return;
+    }
+
+    if (user.playerNeeds) {
+      const { sleep, hunger, hydration, happiness } = user.playerNeeds;
+      if (sleep <= 0 || hunger <= 0 || hydration <= 0 || happiness <= 0) {
+        res.status(400).json({ error: 'Jesteś zbyt wycieńczony, by obstawiać! Zadbaj o potrzeby.' });
+        return;
+      }
+    }
+
+    if (user.tokens < bet) {
+      res.status(400).json({ error: 'Niewystarczająca liczba żetonów' });
+      return;
+    }
+
+    // Losowanie zwycięskiej zawodniczki (1-5, po 20% szans)
+    const winningRunner = Math.floor(Math.random() * 5) + 1;
+    const isWin = runner === winningRunner;
+
+    const winnings = isWin ? bet * 5 : 0;
+    const tokensDelta = winnings - bet;
+
+    // Aktualizacja w bazie
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { tokens: { increment: tokensDelta } },
+      select: { tokens: true }
+    });
+
+    const needs = await applyNeedsDecay(userId, 'solo');
+
+    await prisma.playerStats.update({
+      where: { userId },
+      data: { gamesPlayed: { increment: 1 } }
+    });
+
+    await prisma.matchHistory.create({
+      data: { player1Id: userId, gameType: 'race_bet', tokensDelta }
+    });
+
+    res.json({
+      winningRunner,
+      isWin,
+      winnings,
+      tokensDelta,
+      tokens: updatedUser.tokens,
+      needs,
+      message: isWin
+        ? `🏁 WYGRANA! Zawodniczka ${winningRunner} dobiegła pierwsza! +${winnings} żetonów!`
+        : `😔 PRZEGRANA. Wygrała zawodniczka ${winningRunner}.`
+    });
+
+  } catch (err) {
+    console.error('Race game error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
 export default router;

@@ -5,7 +5,7 @@ import { useGameStore } from '../stores/gameStore';
 import SlotReel from '../components/SlotReel';
 import {
   sfxCardDeal, sfxWin, sfxJackpot, sfxLose,
-  sfxSpinStart, sfxReelStop, sfxClick
+  sfxSpinStart, sfxReelStop, sfxClick, sfxBuy
 } from '../utils/sfx';
 
 // ─── SUIT MAP ────────────────────────────────────────────────────────────────
@@ -20,7 +20,6 @@ interface CardDef { rank: string; suit: string; faceDown?: boolean }
 const VegasCard: React.FC<{ card: CardDef; delay: number }> = ({ card, delay }) => {
   const [in_, setIn] = useState(false);
   useEffect(() => {
-    // Szybkie włączenie flagi animacji na następnym ticku pętli zdarzeń
     const r = requestAnimationFrame(() => setIn(true));
     return () => cancelAnimationFrame(r);
   }, []);
@@ -75,19 +74,16 @@ const VegasCard: React.FC<{ card: CardDef; delay: number }> = ({ card, delay }) 
         : 'translateY(-80px) rotateY(90deg) scale(0.7)',
       transition: `opacity 0.35s ease ${delay}ms, transform 0.42s cubic-bezier(0.34,1.4,0.64,1) ${delay}ms`,
     }}>
-      {/* Top-left */}
       <div style={{ lineHeight: 1.1, fontSize: '0.95rem' }}>
         <div style={{ fontWeight: 900, fontSize: '1.05rem' }}>{rank}</div>
         <div>{sym}</div>
       </div>
-      {/* Center big symbol */}
       <div style={{
         position: 'absolute', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
         fontSize: '2rem', lineHeight: 1,
         textShadow: red ? '0 0 8px rgba(185,28,28,0.3)' : 'none',
       }}>{sym}</div>
-      {/* Bottom-right (rotated) */}
       <div style={{ lineHeight: 1.1, fontSize: '0.95rem', transform: 'rotate(180deg)', alignSelf: 'flex-end' }}>
         <div style={{ fontWeight: 900, fontSize: '1.05rem' }}>{rank}</div>
         <div>{sym}</div>
@@ -167,26 +163,49 @@ const Chip: React.FC<{ val: number; onClick: () => void; active: boolean }> = ({
   );
 };
 
+// ZAWODNICZKI
+interface Runner {
+  id: number;
+  name: string;
+  emoji: string;
+  color: string;
+}
+
+const RUNNERS: Runner[] = [
+  { id: 1, name: 'Scarlett', emoji: '💃', color: '#ff2a6d' },
+  { id: 2, name: 'Roxanne', emoji: '👠', color: '#05d9e8' },
+  { id: 3, name: 'Lola', emoji: '💄', color: '#01012b' },
+  { id: 4, name: 'Mercedes', emoji: '🕶️', color: '#f5a623' },
+  { id: 5, name: 'Carmen', emoji: '👑', color: '#2ecc71' }
+];
+
 // ─── MAIN CASINO PAGE ────────────────────────────────────────────────────────
 const CasinoPage: React.FC = () => {
-  const [mode, setMode] = useState<'blackjack' | 'slots'>('blackjack');
+  const [mode, setMode] = useState<'blackjack' | 'slots' | 'races'>('blackjack');
   const [bet, setBet] = useState(25);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ text: string; type: 'win' | 'lose' | 'push' | 'bj' } | null>(null);
   const [animKey, setAnimKey] = useState(0);
 
-  // Dealer state held separately so it NEVER disappears on hit
+  // Blackjack
   const [dealerCards, setDealerCards] = useState<CardDef[]>([]);
   const [dealerValue, setDealerValue] = useState<number | null>(null);
   const [phase, setPhase] = useState<'idle' | 'playing' | 'done'>('idle');
-
-  const { user, needs, setUser, updateNeeds } = useAuthStore();
-  const { slotSpinning, setSlotSpinning, slotResult, setSlotResult, slotSymbols, setSlotSymbols } = useGameStore();
-
-  const depleted = needs.sleep <= 0 || needs.hunger <= 0 || needs.hydration <= 0 || (needs.happiness ?? 100) <= 0;
   const [playerCards, setPlayerCards] = useState<CardDef[]>([]);
   const [playerValue, setPlayerValue] = useState<number | null>(null);
 
+  // Slots
+  const { user, needs, setUser, updateNeeds } = useAuthStore();
+  const { slotSpinning, setSlotSpinning, slotResult, setSlotResult, slotSymbols, setSlotSymbols } = useGameStore();
+
+  // Wyścigi
+  const [selectedRunner, setSelectedRunner] = useState<number | null>(null);
+  const [raceRunning, setRaceRunning] = useState(false);
+  const [runnerPositions, setRunnerPositions] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+  const [raceResultMsg, setRaceResultMsg] = useState<string | null>(null);
+  const [winningRunnerId, setWinningRunnerId] = useState<number | null>(null);
+
+  const depleted = needs.sleep <= 0 || needs.hunger <= 0 || needs.hydration <= 0 || (needs.happiness ?? 100) <= 0;
   const bumpAnim = () => setAnimKey(k => k + 1);
 
   // ── BLACKJACK ──────────────────────────────────────────────────────────────
@@ -220,7 +239,6 @@ const CasinoPage: React.FC = () => {
       bumpAnim();
       setPlayerCards(d.playerHand);
       setPlayerValue(d.playerValue);
-      // ← dealer stays unchanged, we only update dealerVisible if backend sends it
       if (d.dealerVisible) {
         setDealerCards(prev => {
           const copy = [...prev];
@@ -247,20 +265,26 @@ const CasinoPage: React.FC = () => {
       const res = await api.post('/game/blackjack/stand');
       const d = res.data;
       bumpAnim();
-      setPlayerCards(d.playerHand);
       setDealerCards(d.dealerHand);
       setDealerValue(d.dealerValue);
-      setPlayerValue(d.playerValue);
       setPhase('done');
-      resolveResult(d.outcome, d.payout);
       updateNeeds(d.needs);
       if (user) setUser({ ...user, tokens: d.tokens });
+
+      if (d.result === 'win' || d.result === 'blackjack') {
+        sfxWin();
+        setResult({ text: d.result === 'blackjack' ? '👑 Blackjack!' : '✅ Wygrałeś rozdanie!', type: 'win' });
+      } else if (d.result === 'push') {
+        setResult({ text: '🤝 Remis, stawka zwrócona.', type: 'push' });
+      } else {
+        sfxLose();
+        setResult({ text: '❌ Przegrałeś z krupierem.', type: 'lose' });
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   const doubleDown = async () => {
-    if (!user || user.tokens < bet) return;
     sfxClick();
     setLoading(true);
     try {
@@ -269,234 +293,195 @@ const CasinoPage: React.FC = () => {
       bumpAnim();
       setPlayerCards(d.playerHand);
       setDealerCards(d.dealerHand);
-      setDealerValue(d.dealerValue);
       setPlayerValue(d.playerValue);
+      setDealerValue(d.dealerValue);
       setPhase('done');
-      resolveResult(d.outcome, d.payout);
       updateNeeds(d.needs);
       if (user) setUser({ ...user, tokens: d.tokens });
-      sfxCardDeal();
+
+      if (d.result === 'win') {
+        sfxWin();
+        setResult({ text: '✅ Podwójna wygrana!', type: 'win' });
+      } else if (d.result === 'push') {
+        setResult({ text: '🤝 Remis, stawka zwrócona.', type: 'push' });
+      } else {
+        sfxLose();
+        setResult({ text: '❌ Podwójna przegrana.', type: 'lose' });
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
-  const resolveResult = (outcome: string, payout: number) => {
-    if (outcome === 'blackjack') {
-      sfxJackpot();
-      setResult({ text: `🎉 BLACKJACK! +${payout} żetonów!`, type: 'bj' });
-    } else if (outcome === 'win') {
-      sfxWin();
-      setResult({ text: `✅ Wygrałeś! +${payout} żetonów`, type: 'win' });
-    } else if (outcome === 'loss') {
-      sfxLose();
-      setResult({ text: '❌ Przegrałeś. Krupier wygrywa.', type: 'lose' });
-    } else {
-      setResult({ text: '🤝 Remis – zwrot stawki.', type: 'push' });
-    }
-  };
-
   // ── SLOTS ──────────────────────────────────────────────────────────────────
   const spin = async () => {
-    if (depleted || !user || user.tokens < bet || slotSpinning) return;
-    sfxClick(); sfxSpinStart();
+    if (slotSpinning || depleted || !user || user.tokens < bet) return;
+    sfxSpinStart();
     setSlotSpinning(true);
     setSlotResult(null);
     setUser({ ...user, tokens: user.tokens - bet });
+
     try {
       const res = await api.post('/game/slots/spin', { bet });
+      const d = res.data;
+      updateNeeds(d.needs);
+
       setTimeout(() => {
-        setSlotSymbols(res.data.reels);
+        setSlotSymbols(d.reels);
         setSlotSpinning(false);
-        const win = res.data.multiplier > 0;
-        win ? (res.data.multiplier >= 20 ? sfxJackpot() : sfxWin()) : sfxLose();
         sfxReelStop();
-        setSlotResult({ symbols: res.data.reels, win, amount: bet * res.data.multiplier });
-        updateNeeds(res.data.needs);
-        setUser({ ...user, tokens: res.data.tokens });
-      }, 2400);
+
+        const isWin = d.multiplier > 0;
+        setSlotResult({ win: isWin, amount: d.winnings });
+        setUser({ ...user, tokens: d.tokens });
+
+        if (isWin) {
+          if (d.isBonus) sfxJackpot();
+          else sfxWin();
+        } else {
+          sfxLose();
+        }
+      }, 1000);
     } catch (e) {
       setSlotSpinning(false);
-      api.get('/auth/me').then(r => { if (user) setUser({ ...user, tokens: r.data.user.tokens }); });
+      api.get('/auth/me').then(r => { if (user) setUser(r.data.user); });
     }
   };
 
-  const resultColor = result?.type === 'bj' ? '#f1c40f'
-    : result?.type === 'win' ? '#2ecc71'
-    : result?.type === 'lose' ? '#e74c3c'
-    : '#aaa';
+  // ── WYŚCIGI ─────────────────────────────────────────────────────────────────
+  const startRace = async () => {
+    if (raceRunning || selectedRunner === null || depleted || !user || user.tokens < bet) return;
+    sfxSpinStart();
+    setRaceRunning(true);
+    setRaceResultMsg(null);
+    setWinningRunnerId(null);
+    setRunnerPositions({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+
+    // Odejmij stawkę lokalnie
+    setUser({ ...user, tokens: user.tokens - bet });
+
+    try {
+      const res = await api.post('/game/race/bet', { bet, runner: selectedRunner });
+      const winningId = res.data.winningRunner;
+
+      // Rozpocznij animację ruchu zawodniczek
+      let currentPos = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      const interval = setInterval(() => {
+        let reachedFinish = false;
+        
+        currentPos = {
+          1: currentPos[1] + Math.random() * 8,
+          2: currentPos[2] + Math.random() * 8,
+          3: currentPos[3] + Math.random() * 8,
+          4: currentPos[4] + Math.random() * 8,
+          5: currentPos[5] + Math.random() * 8,
+        };
+
+        // Koryguj pozycje, aby zwycięzca dojechał pierwszy na samym końcu
+        RUNNERS.forEach(r => {
+          if (currentPos[r.id as 1|2|3|4|5] >= 90) {
+            reachedFinish = true;
+          }
+        });
+
+        setRunnerPositions({ ...currentPos });
+
+        if (reachedFinish) {
+          clearInterval(interval);
+          
+          // Ustaw ostateczne pozycje (zwycięzca na 100, reszta z tyłu)
+          const finalPos: Record<number, number> = {};
+          RUNNERS.forEach(r => {
+            finalPos[r.id] = r.id === winningId ? 100 : Math.min(94, currentPos[r.id as 1|2|3|4|5]);
+          });
+          setRunnerPositions(finalPos);
+
+          setWinningRunnerId(winningId);
+          setRaceResultMsg(res.data.message);
+          updateNeeds(res.data.needs);
+          setUser({ ...user, tokens: res.data.tokens });
+
+          if (res.data.isWin) sfxWin();
+          else sfxLose();
+
+          setRaceRunning(false);
+        }
+      }, 100);
+
+    } catch (e) {
+      setRaceRunning(false);
+      api.get('/auth/me').then(r => { if (user) setUser(r.data.user); });
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-      {/* ── NEON HEADER ── */}
-      <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-        <NeonTitle text="Casino Star" />
-        <div style={{
-          display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12,
-        }}>
-          {(['blackjack', 'slots'] as const).map(m => (
-            <button key={m} onClick={() => { sfxClick(); setMode(m); setResult(null); }} style={{
-              padding: '10px 32px',
-              background: mode === m
-                ? 'linear-gradient(135deg, #d4af37, #f5e088, #b8940f)'
-                : 'rgba(255,255,255,0.05)',
-              border: `2px solid ${mode === m ? '#d4af37' : 'rgba(212,175,55,0.3)'}`,
-              borderRadius: 30,
-              color: mode === m ? '#111' : '#d4af37',
-              fontWeight: 900,
-              fontSize: '0.9rem',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              boxShadow: mode === m ? '0 0 20px rgba(212,175,55,0.5)' : 'none',
-              transition: 'all 0.2s ease',
-            }}>
-              {m === 'blackjack' ? '🃏 Blackjack' : '🎰 Slots'}
-            </button>
-          ))}
-        </div>
+      
+      {/* Taby Wyboru Gry */}
+      <div style={{ display: 'flex', gap: 14, justifyContent: 'center' }}>
+        {[
+          { id: 'blackjack', label: '🃏 Blackjack', color: 'var(--gold)' },
+          { id: 'slots', label: '🎰 Automat', color: '#e040fb' },
+          { id: 'races', label: '🏁 Wyścigi (x5)', color: '#05d9e8' }
+        ].map(t => (
+          <button key={t.id} onClick={() => { sfxClick(); setMode(t.id as any); }}
+            style={{
+              background: mode === t.id ? 'rgba(255,255,255,0.06)' : 'transparent',
+              border: `2px solid ${mode === t.id ? t.color : 'rgba(255,255,255,0.1)'}`,
+              borderRadius: 14, padding: '12px 24px', cursor: 'pointer',
+              color: mode === t.id ? '#fff' : '#aaa', fontWeight: 800, fontSize: '0.95rem',
+              boxShadow: mode === t.id ? `0 0 15px ${t.color}22` : 'none',
+              transition: 'all 0.2s',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* ── ALERTS ── */}
-      {depleted && (
-        <div style={{
-          padding: '14px 20px', background: 'rgba(231,76,60,0.12)',
-          border: '1px solid #e74c3c', borderRadius: 12, textAlign: 'center',
-          fontWeight: 700, color: '#e74c3c', fontSize: '0.95rem',
-          animation: 'glow-pulse 1.5s infinite',
-        }}>
-          ⚠️ Jesteś wycieńczony! Kasyno odmawia Ci gry. Odpocznij i zadbaj o potrzeby.
-        </div>
-      )}
-      {!depleted && (needs.happiness ?? 100) <= 10 && (
-        <div style={{ padding: '10px 16px', background: 'rgba(231,76,60,0.07)', border: '1px dashed #e74c3c', borderRadius: 8, textAlign: 'center', fontSize: '0.83rem', color: '#e74c3c' }}>
-          🚨 KRYTYCZNY nastrój ({needs.happiness}%) — Twoje szanse na wygraną drastycznie spadły!
-        </div>
-      )}
-      {!depleted && (needs.happiness ?? 100) > 10 && (needs.happiness ?? 100) <= 20 && (
-        <div style={{ padding: '10px 16px', background: 'rgba(212,175,55,0.06)', border: '1px dashed #d4af37', borderRadius: 8, textAlign: 'center', fontSize: '0.83rem', color: '#d4af37' }}>
-          ⚠️ Zły humor ({needs.happiness}%) — Kasyno wyczuwa Twój smutek. Szanse na wygraną są znacznie mniejsze.
-        </div>
-      )}
-
       {/* ══════════════════════════════════════════════════
-          BLACKJACK TABLE
+          BLACKJACK
       ══════════════════════════════════════════════════ */}
       {mode === 'blackjack' && (
         <div style={{
-          background: `
-            radial-gradient(ellipse at 50% 20%, #1a5c2a 0%, #0f3d1a 45%, #09270f 100%)
-          `,
-          borderRadius: 24,
-          border: '4px solid',
-          borderImage: 'linear-gradient(135deg, #d4af37, #f5e088, #b8940f, #d4af37) 1',
-          boxShadow: '0 0 60px rgba(0,0,0,0.9), 0 0 30px rgba(212,175,55,0.15), inset 0 0 40px rgba(0,0,0,0.5)',
-          padding: '32px 28px',
-          position: 'relative',
-          overflow: 'hidden',
+          background: 'linear-gradient(150deg, #112518 0%, #061009 70%, #0c1c11 100%)',
+          borderRadius: 24, border: '3px solid var(--border-gold)',
+          boxShadow: '0 0 50px rgba(0,250,100,0.08), inset 0 0 30px rgba(0,0,0,0.8)',
+          padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20
         }}>
-          {/* Felt texture overlay */}
-          <div style={{
-            position: 'absolute', inset: 0, borderRadius: 20,
-            background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px)',
-            pointerEvents: 'none',
-          }} />
+          <NeonTitle text="Blackjack Vegas" color="#d4af37" />
 
-          {/* Gold decorative arc */}
-          <div style={{
-            position: 'absolute', bottom: -80, left: '50%',
-            transform: 'translateX(-50%)',
-            width: 700, height: 200,
-            border: '2px solid rgba(212,175,55,0.25)',
-            borderRadius: '50%',
-            pointerEvents: 'none',
-          }} />
-
-          {/* ─ DEALER ─ */}
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{
-              display: 'inline-block',
-              padding: '3px 20px', borderRadius: 20,
-              background: 'rgba(0,0,0,0.35)',
-              border: '1px solid rgba(212,175,55,0.3)',
-              color: 'rgba(212,175,55,0.8)',
-              fontSize: '0.72rem', fontWeight: 700,
-              letterSpacing: '0.2em', textTransform: 'uppercase',
-              marginBottom: 14,
-            }}>
-              ♠ Krupier ♠
-            </div>
-            <CardRow
-              key={`d-${animKey}`}
-              cards={dealerCards.length > 0 ? dealerCards : [
-                { rank: '?', suit: '?', faceDown: true },
-                { rank: '?', suit: '?', faceDown: true },
-              ]}
-              animBase={animKey * 1000}
-            />
-            {phase === 'done' && dealerValue !== null && (
-              <Score val={dealerValue} bust={dealerValue > 21} />
-            )}
+          {/* Dealer card area */}
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span style={{ color: '#aaa', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em' }}>KRUPIER</span>
+            <div style={{ height: 16 }} />
+            <CardRow cards={dealerCards} animBase={animKey + 100} />
+            {dealerValue !== null && <Score val={dealerValue} />}
           </div>
 
-          {/* ─ Divider ─ */}
-          <div style={{
-            height: 1, margin: '20px 0',
-            background: 'linear-gradient(90deg, transparent, rgba(212,175,55,0.4) 30%, rgba(212,175,55,0.4) 70%, transparent)',
-          }} />
+          <div style={{ width: '100%', height: '1px', background: 'rgba(212,175,55,0.15)', margin: '10px 0' }} />
 
-          {/* ─ PLAYER ─ */}
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{
-              display: 'inline-block',
-              padding: '3px 20px', borderRadius: 20,
-              background: 'rgba(0,0,0,0.35)',
-              border: '1px solid rgba(212,175,55,0.3)',
-              color: 'rgba(212,175,55,0.8)',
-              fontSize: '0.72rem', fontWeight: 700,
-              letterSpacing: '0.2em', textTransform: 'uppercase',
-              marginBottom: 14,
-            }}>
-              ♦ Twój Układ ♦
-            </div>
-            <CardRow
-              key={`p-${animKey}`}
-              cards={playerCards.length > 0 ? playerCards : [
-                { rank: '?', suit: '?', faceDown: true },
-                { rank: '?', suit: '?', faceDown: true },
-              ]}
-              animBase={animKey * 1000 + 500}
-            />
-            {playerValue !== null && (
-              <Score val={playerValue} bust={(playerValue || 0) > 21} />
-            )}
+          {/* Player card area */}
+          <div style={{ textAlign: 'center' }}>
+            <CardRow cards={playerCards} animBase={animKey} />
+            {playerValue !== null && <Score val={playerValue} bust={playerValue > 21} />}
+            <div style={{ height: 10 }} />
+            <span style={{ color: '#aaa', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em' }}>GRACZ</span>
           </div>
 
-          {/* ─ WYNIK ─ */}
+          {/* Result announcement */}
           {result && (
             <div style={{
-              textAlign: 'center', padding: '16px',
-              fontSize: '1.6rem', fontWeight: 900,
-              color: resultColor,
-              textShadow: `0 0 20px ${resultColor}, 0 0 40px ${resultColor}66`,
-              animation: 'bounce-in 0.5s cubic-bezier(0.34,1.6,0.64,1)',
-              letterSpacing: '0.05em',
+              fontSize: '1.45rem', fontWeight: 900,
+              color: result.type === 'win' ? '#f1c40f' : result.type === 'lose' ? '#e74c3c' : '#ccc',
+              textShadow: result.type === 'win' ? '0 0 15px #f1c40f88' : 'none',
+              animation: 'bounce-in 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
             }}>
               {result.text}
             </div>
           )}
-        </div>
-      )}
 
-      {/* ─ CHIP SELECTOR + CONTROLS ─ */}
-      {mode === 'blackjack' && (
-        <div style={{
-          background: 'rgba(10,10,20,0.85)',
-          border: '1px solid rgba(212,175,55,0.2)',
-          borderRadius: 20,
-          padding: '20px 24px',
-          display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center',
-        }}>
+          <div style={{ height: 6 }} />
+
           {/* Chips */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
             {CHIP_PRESETS.map(v => (
@@ -699,6 +684,183 @@ const CasinoPage: React.FC = () => {
               ×8→ x25 | ×9→ x60
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════
+          WYŚCIGI (RACES)
+      ══════════════════════════════════════════════════ */}
+      {mode === 'races' && (
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          
+          {/* Obszar toru wyścigowego */}
+          <div className="glass-card" style={{
+            flex: 2, minWidth: 320, padding: 24,
+            background: 'linear-gradient(135deg, #0d001a 0%, #030008 100%)',
+            border: '3px solid #05d9e8',
+            boxShadow: '0 0 35px rgba(5,217,232,0.15)',
+            display: 'flex', flexDirection: 'column', gap: 20
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <NeonTitle text="🏁 WIRTUALNY TOR" color="#05d9e8" />
+              <p style={{ color: '#888', fontSize: '0.85rem', marginTop: 8 }}>
+                Wybierz zawodniczkę, obstaw stawkę i wygraj 5x więcej! Szanse: 20% na każdą.
+              </p>
+            </div>
+
+            {/* Tor wyścigowy w CSS */}
+            <div style={{
+              background: 'rgba(0,0,0,0.8)', border: '2px solid rgba(5,217,232,0.3)',
+              borderRadius: 16, padding: '16px 12px', display: 'flex', flexDirection: 'column',
+              gap: 12, position: 'relative', overflow: 'hidden'
+            }}>
+              {/* Linia startu i mety */}
+              <div style={{ position: 'absolute', left: 45, top: 0, bottom: 0, width: 2, background: 'dashed rgba(255,255,255,0.2)' }} />
+              <div style={{ position: 'absolute', right: 40, top: 0, bottom: 0, width: 4, background: 'repeating-linear-gradient(45deg, #fff, #fff 4px, #000 4px, #000 8px)' }} />
+
+              {RUNNERS.map((runner) => {
+                const pos = runnerPositions[runner.id] || 0;
+                const isSelected = selectedRunner === runner.id;
+                const isWinner = winningRunnerId === runner.id;
+                
+                return (
+                  <div key={runner.id} style={{
+                    display: 'flex', alignItems: 'center', height: 48,
+                    background: isSelected ? 'rgba(5,217,232,0.06)' : 'rgba(255,255,255,0.02)',
+                    borderRadius: 8, padding: '0 8px', border: `1px solid ${isSelected ? 'rgba(5,217,232,0.4)' : 'transparent'}`,
+                    position: 'relative'
+                  }}>
+                    {/* Numer i imię toru */}
+                    <div style={{ width: 35, fontWeight: 900, color: runner.color, fontSize: '0.9rem' }}>
+                      #{runner.id}
+                    </div>
+
+                    {/* Poruszający się runner */}
+                    <div style={{
+                      position: 'absolute',
+                      left: `calc(40px + ${pos * 0.8}%)`, // mapuje 0-100 do szerokości toru
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      transition: 'left 0.1s linear',
+                      zIndex: 5
+                    }}>
+                      <span style={{
+                        fontSize: '1.8rem',
+                        filter: isWinner ? 'drop-shadow(0 0 10px #f1c40f)' : 'none',
+                        animation: raceRunning ? 'float-up 0.5s infinite alternate' : 'none'
+                      }}>
+                        {runner.emoji}
+                      </span>
+                      <span style={{
+                        fontSize: '0.75rem', fontWeight: 700,
+                        color: runner.color, background: 'rgba(0,0,0,0.8)',
+                        padding: '2px 6px', borderRadius: 4, border: `1px solid ${runner.color}`
+                      }}>
+                        {runner.name}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Komunikat o wygranej */}
+            {raceResultMsg && (
+              <div style={{
+                textAlign: 'center', fontWeight: 900, fontSize: '1.25rem',
+                color: raceResultMsg.includes('WYGRANA') ? '#2ecc71' : '#ff3838',
+                textShadow: raceResultMsg.includes('WYGRANA') ? '0 0 15px rgba(46,204,113,0.3)' : 'none',
+                animation: 'bounce-in 0.5s ease'
+              }}>
+                {raceResultMsg}
+              </div>
+            )}
+
+            {/* Przyciski operacyjne */}
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: 10 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {CHIP_PRESETS.slice(0, 4).map(v => (
+                  <Chip key={v} val={v} active={bet === v} onClick={() => { sfxClick(); setBet(v); }} />
+                ))}
+              </div>
+
+              <button
+                onClick={startRace}
+                disabled={raceRunning || selectedRunner === null || depleted || !user || user.tokens < bet}
+                style={{
+                  padding: '12px 42px',
+                  background: raceRunning
+                    ? 'rgba(5,217,232,0.2)'
+                    : 'linear-gradient(135deg, #05d9e8, #0056b3)',
+                  border: '2px solid #05d9e8', borderRadius: 30, color: '#fff',
+                  fontWeight: 900, fontSize: '1.1rem', letterSpacing: '0.12em',
+                  boxShadow: raceRunning ? 'none' : '0 0 25px rgba(5,217,232,0.4)',
+                  cursor: (raceRunning || selectedRunner === null) ? 'not-allowed' : 'pointer',
+                  transition: 'transform 0.15s',
+                  opacity: (depleted || selectedRunner === null) ? 0.5 : 1
+                }}
+                onMouseEnter={e => !raceRunning && selectedRunner !== null && (e.currentTarget.style.transform = 'scale(1.05)')}
+                onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                {raceRunning ? '🏁 BIEGNĄ...' : '🏁 ZACZNIJ WYŚCIG'}
+              </button>
+            </div>
+
+          </div>
+
+          {/* Panel Wyboru Zawodniczki (Obstawianie) */}
+          <div className="glass-card" style={{
+            flex: 1, minWidth: 240, padding: 20,
+            background: 'rgba(0,0,0,0.6)',
+            border: '1px solid rgba(5,217,232,0.25)',
+            display: 'flex', flexDirection: 'column', gap: 14
+          }}>
+            <h3 style={{
+              color: '#05d9e8', fontWeight: 900, fontSize: '1rem',
+              textAlign: 'center', marginBottom: 10, letterSpacing: '0.08em'
+            }}>
+              BET: WYBIERZ FAWORYTA
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {RUNNERS.map((runner) => {
+                const isSelected = selectedRunner === runner.id;
+                return (
+                  <button
+                    key={runner.id}
+                    disabled={raceRunning}
+                    onClick={() => { sfxClick(); setSelectedRunner(runner.id); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 14px', borderRadius: 10,
+                      background: isSelected ? `${runner.color}15` : 'rgba(255,255,255,0.03)',
+                      border: `2px solid ${isSelected ? runner.color : 'rgba(255,255,255,0.08)'}`,
+                      cursor: raceRunning ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.15s ease',
+                      width: '100%'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: '1.4rem' }}>{runner.emoji}</span>
+                      <span style={{ fontWeight: 800, color: isSelected ? runner.color : '#ccc', fontSize: '0.85rem' }}>
+                        {runner.name}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 900, color: runner.color }}>
+                      x5.0
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{
+              marginTop: 10, fontSize: '0.75rem', color: '#666',
+              lineHeight: '1.5', textAlign: 'center'
+            }}>
+              Wszystkie zawodniczki startują w równych warunkach. Losowy generator prędkości decyduje o wygranej.
+            </div>
+          </div>
+
         </div>
       )}
     </div>
