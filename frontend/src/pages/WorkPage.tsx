@@ -23,7 +23,7 @@ const FlappyBird: React.FC<{
   const [earnedMsg, setEarnedMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const birdY = useRef(150);
+  const birdY = useRef(240);
   const birdVelocity = useRef(0);
   const pipes = useRef<Array<{ x: number; top: number; bottom: number; passed: boolean }>>([]);
   const frameId = useRef<number | null>(null);
@@ -35,11 +35,11 @@ const FlappyBird: React.FC<{
     setScore(0);
     scoreRef.current = 0;
     setEarnedMsg(null);
-    birdY.current = 150;
+    birdY.current = 240;
     birdVelocity.current = 0;
     pipes.current = [
-      { x: 400, top: 100, bottom: 100, passed: false },
-      { x: 600, top: 80, bottom: 120, passed: false },
+      { x: 500, top: 120, bottom: 120, passed: false },
+      { x: 800, top: 100, bottom: 150, passed: false },
     ];
   }, []);
 
@@ -49,7 +49,7 @@ const FlappyBird: React.FC<{
       return;
     }
     if (gameOver) return;
-    birdVelocity.current = -7.5;
+    birdVelocity.current = -5.8;
   }, [isPlaying, gameOver, startGame]);
 
   const handleGameOver = async () => {
@@ -100,19 +100,19 @@ const FlappyBird: React.FC<{
       frameCount++;
 
       // Bird physics
-      birdVelocity.current += 0.4; // Gravity
+      birdVelocity.current += 0.22; // Gravity (slower fall)
       birdY.current += birdVelocity.current;
 
-      // Floor & ceiling collision
-      if (birdY.current > canvas.height - 12 || birdY.current < 12) {
+      // Floor & ceiling collision (radius is 14)
+      if (birdY.current > canvas.height - 14 || birdY.current < 14) {
         handleGameOver();
         return;
       }
 
       // Generate new pipes
       if (frameCount % 100 === 0) {
-        const gap = 120;
-        const minHeight = 40;
+        const gap = 150; // Larger gap for larger screen
+        const minHeight = 50;
         const maxHeight = canvas.height - gap - minHeight;
         const topHeight = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
         const bottomHeight = canvas.height - gap - topHeight;
@@ -130,9 +130,9 @@ const FlappyBird: React.FC<{
         p.x -= 2.5; // Speed
 
         // Collision detection
-        const birdX = 60;
-        const birdRadius = 12;
-        const pipeWidth = 55;
+        const birdX = 100; // Shifted right on wider screen
+        const birdRadius = 14;
+        const pipeWidth = 60;
 
         // Bounding box collision
         if (birdX + birdRadius > p.x && birdX - birdRadius < p.x + pipeWidth) {
@@ -175,7 +175,7 @@ const FlappyBird: React.FC<{
 
       // Draw pipes (neon style)
       pipes.current.forEach(p => {
-        const pipeWidth = 55;
+        const pipeWidth = 60;
         
         // Top pipe
         const gradTop = ctx.createLinearGradient(p.x, 0, p.x + pipeWidth, 0);
@@ -198,8 +198,8 @@ const FlappyBird: React.FC<{
 
       // Draw bird (Neon cyan circle)
       ctx.beginPath();
-      ctx.arc(60, birdY.current, 12, 0, Math.PI * 2);
-      const birdGrad = ctx.createRadialGradient(60, birdY.current, 2, 60, birdY.current, 12);
+      ctx.arc(100, birdY.current, 14, 0, Math.PI * 2);
+      const birdGrad = ctx.createRadialGradient(100, birdY.current, 2, 100, birdY.current, 14);
       birdGrad.addColorStop(0, '#fff');
       birdGrad.addColorStop(0.4, '#05d9e8');
       birdGrad.addColorStop(1, '#005f73');
@@ -214,15 +214,15 @@ const FlappyBird: React.FC<{
 
       // Draw eye
       ctx.beginPath();
-      ctx.arc(64, birdY.current - 4, 3, 0, Math.PI * 2);
+      ctx.arc(104, birdY.current - 4, 3, 0, Math.PI * 2);
       ctx.fillStyle = '#000';
       ctx.fill();
 
       // Draw beak
       ctx.beginPath();
-      ctx.moveTo(70, birdY.current - 2);
-      ctx.lineTo(76, birdY.current + 2);
-      ctx.lineTo(70, birdY.current + 4);
+      ctx.moveTo(110, birdY.current - 2);
+      ctx.lineTo(118, birdY.current + 2);
+      ctx.lineTo(110, birdY.current + 4);
       ctx.fillStyle = '#f5a623';
       ctx.fill();
 
@@ -238,13 +238,13 @@ const FlappyBird: React.FC<{
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 480, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 800, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
         <span>Wynik: <strong style={{ color: 'var(--gold)' }}>{score}</strong></span>
         <span>Rekord: <strong style={{ color: '#05d9e8' }}>{highScore}</strong></span>
       </div>
 
-      <div style={{ position: 'relative', width: 480, height: 320, background: '#0f021e', border: '3px solid #ff2a6d', borderRadius: 16, overflow: 'hidden', boxShadow: '0 0 25px rgba(255, 42, 109, 0.2)' }}>
-        <canvas ref={canvasRef} width={480} height={320} onClick={jump} style={{ display: 'block', cursor: 'pointer' }} />
+      <div style={{ position: 'relative', width: 800, height: 480, background: '#0f021e', border: '3px solid #ff2a6d', borderRadius: 16, overflow: 'hidden', boxShadow: '0 0 25px rgba(255, 42, 109, 0.2)' }}>
+        <canvas ref={canvasRef} width={800} height={480} onClick={jump} style={{ display: 'block', cursor: 'pointer' }} />
         
         {(!isPlaying || gameOver) && (
           <div style={{
@@ -257,7 +257,7 @@ const FlappyBird: React.FC<{
               <>
                 <h2 style={{ color: '#ff2a6d', fontSize: '2rem', fontFamily: 'var(--font-display)', textShadow: '0 0 10px #ff2a6d' }}>KONIEC GRY 💀</h2>
                 {loading ? (
-                  <p style={{ color: '#aaa' }}>Zapisywanie wyniku i wypłata zarobku...</p>
+                  <p style={{ color: '#aaa' }}>Zapisywanie wyniku...</p>
                 ) : (
                   <>
                     <p style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Twój wynik: {score} rur</p>
@@ -270,8 +270,8 @@ const FlappyBird: React.FC<{
               </>
             ) : (
               <>
-                <h2 style={{ color: '#05d9e8', fontSize: '1.8rem', fontFamily: 'var(--font-display)', textShadow: '0 0 10px #05d9e8' }}>FLAPPY BIRD 🐦</h2>
-                <p style={{ color: '#ccc', fontSize: '0.85rem', maxWidth: 300 }}>
+                <h2 style={{ color: '#05d9e8', fontSize: '2rem', fontFamily: 'var(--font-display)', textShadow: '0 0 10px #05d9e8' }}>FLAPPY BIRD 🐦</h2>
+                <p style={{ color: '#ccc', fontSize: '0.9rem', maxWidth: 500 }}>
                   Steruj ptakiem za pomocą <strong style={{ color: '#fff' }}>Spacji</strong> lub <strong style={{ color: '#fff' }}>Kliknięcia</strong>. Omijaj fioletowo-różowe rury.<br />
                   <span style={{ color: '#2ecc71', fontWeight: 800 }}>Zarobek: 3 $ za każdą ominiętą rurę!</span>
                 </p>
