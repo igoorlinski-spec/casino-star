@@ -5,10 +5,11 @@ import { useAuthStore } from '../stores/authStore';
 
 interface MatchmakingOverlayProps {
   gameType: 'blackjack' | 'slots';
+  bet?: number;
   onClose: () => void;
 }
 
-const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({ gameType, onClose }) => {
+const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({ gameType, bet, onClose }) => {
   const [countdown, setCountdown] = useState(25);
   const setRankedMatch = useGameStore((state) => state.setRankedMatch);
 
@@ -18,9 +19,9 @@ const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({ gameType, onClo
       socket.connect();
     }
 
-    // Dołącz do kolejki z tokenem JWT
+    // Dołącz do kolejki z tokenem JWT i wybraną stawką
     const token = useAuthStore.getState().token;
-    socket.emit('joinQueue', { gameType, token });
+    socket.emit('joinQueue', { gameType, token, bet });
 
     const timer = setInterval(() => {
       setCountdown((prev) => {

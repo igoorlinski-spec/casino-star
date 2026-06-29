@@ -25,6 +25,7 @@ interface QueueEntry {
   socketId: string;
   userId: string;
   nickname: string;
+  bet: number;
 }
 
 interface RankedBlackjackRoom {
@@ -35,6 +36,7 @@ interface RankedBlackjackRoom {
   currentTurn: string; // userId
   roomId: string;
   isBot: boolean;
+  bet: number;
 }
 
 interface RankedSlotsRoom {
@@ -43,6 +45,7 @@ interface RankedSlotsRoom {
   roomId: string;
   isBot: boolean;
   round: number;
+  bet: number;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -177,8 +180,24 @@ async function resolveRankedBlackjackRound(
   const p1WonDealer = !p1Busted && (dealerBusted || p1Value > dealerValue);
   const p2WonDealer = room.player2 && !p2Busted && (dealerBusted || p2Value > dealerValue);
 
-  if (p1WonDealer) room.player1.score++;
-  if (p2WonDealer && room.player2) room.player2.score++;
+  let p1Awarded = false;
+  let p2Awarded = false;
+
+  // Jeżeli obaj wygrali z krupierem, wygrywa ten z wyższą sumą kart
+  if (p1WonDealer && p2WonDealer) {
+    if (p1Value > p2Value) {
+      p1Awarded = true;
+    } else if (p2Value > p1Value) {
+      p2Awarded = true;
+    }
+  } else if (p1WonDealer) {
+    p1Awarded = true;
+  } else if (p2WonDealer) {
+    p2Awarded = true;
+  }
+
+  if (p1Awarded) room.player1.score++;
+  if (p2Awarded && room.player2) room.player2.score++;
 
   io.to(room.roomId).emit('rankedBlackjackRoundResult', {
     player1: {
@@ -186,7 +205,7 @@ async function resolveRankedBlackjackRound(
       hand: room.player1.hand,
       handValue: p1Value,
       score: room.player1.score,
-      wonRound: p1WonDealer,
+      wonRound: p1Awarded,
     },
     player2: room.player2
       ? {
@@ -194,21 +213,35 @@ async function resolveRankedBlackjackRound(
           hand: room.player2.hand,
           handValue: p2Value,
           score: room.player2.score,
-          wonRound: p2WonDealer,
+          wonRound: p2Awarded,
         }
       : null,
     dealerHand: room.dealerHand,
     dealerValue,
   });
 
-  // Check for match winner (first to 3 points)
-  const p1Won = room.player1.score >= 3;
-  const p2Won = room.player2 && room.player2.score >= 3;
+  // Check for match winner (first to 3 points, with overtime tie-break)
+  const score1 = room.player1.score;
+  const score2 = room.player2 ? room.player2.score : 0;
 
-  if (p1Won || p2Won) {
-    const winnerId = p1Won ? room.player1.userId : room.player2!.userId;
-    const loserId = p1Won ? room.player2?.userId : room.player1.userId;
+  let matchEnded = false;
+  let winnerId = '';
+  let loserId: string | undefined = undefined;
 
+  if (score1 >= 3 || score2 >= 3) {
+    if (score1 > score2) {
+      matchEnded = true;
+      winnerId = room.player1.userId;
+      loserId = room.player2?.userId;
+    } else if (score2 > score1) {
+      matchEnded = true;
+      winnerId = room.player2!.userId;
+      loserId = room.player1.userId;
+    }
+    // Jeżeli jest remis (np. 3-3, 4-4), to gramy dogrywkę (matchEnded = false)
+  }
+
+  if (matchEnded) {
     await settleRankedMatch(io, room.roomId, winnerId, loserId, 'blackjack', blackjackRooms);
   } else {
     // Start next round after delay
@@ -230,8 +263,11 @@ async function settleRankedMatch(
   gameType: string,
   rooms: Map<string, unknown>
 ): Promise<void> {
-  const WIN_REWARD = 350;
-  const LOSS_PENALTY = 150;
+  const roomObj = rooms.get(roomId) as any;
+  const bet = roomObj?.bet || 300;
+  
+  const WIN_REWARD = bet;
+  const LOSS_PENALTY = Math.floor(bet / 2);
 
   try {
     await prisma.user.update({
@@ -290,7 +326,7 @@ export function setupMatchmaking(io: Server): void {
   io.on('connection', (socket: Socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    socket.on('joinQueue', async ({ gameType, token }: { gameType: GameType; token: string }) => {
+    socket.on('joinQueue', async ({ gameType, token, bet }: { gameType: GameType; token: string; bet?: number }) => {
       const payload = verifyToken(token);
       if (!payload) {
         socket.emit('error', { message: 'Nieprawidłowy token autoryzacyjny' });
@@ -312,6 +348,13 @@ export function setupMatchmaking(io: Server): void {
         return;
       }
 
+      const chosenBet = bet && typeof bet === 'number' && bet > 0 ? bet : 300;
+
+      if (user.tokens < chosenBet) {
+        socket.emit('error', { message: `Nie masz wystarczająco dużo żetonów, aby zagrać za stawkę ${chosenBet}!` });
+        return;
+      }
+
       const queue = queues.get(gameType);
       if (!queue) {
         socket.emit('error', { message: 'Nieznany typ gry' });
@@ -324,15 +367,19 @@ export function setupMatchmaking(io: Server): void {
         if (idx !== -1) q.splice(idx, 1);
       }
 
-      const entry: QueueEntry = { socketId: socket.id, userId: payload.id, nickname: payload.nickname };
-      queue.push(entry);
+      const entry: QueueEntry = { 
+        socketId: socket.id, 
+        userId: payload.id, 
+        nickname: payload.nickname, 
+        bet: chosenBet 
+      };
 
-      socket.emit('queueJoined', { gameType, position: queue.length });
-      console.log(`${payload.nickname} joined ${gameType} queue (size: ${queue.length})`);
+      // Szukamy gracza w kolejce z DOKŁADNIE tą samą stawką chosenBet
+      const matchingIdx = queue.findIndex(e => e.bet === chosenBet);
 
-      // Check if we have 2 players
-      if (queue.length >= 2) {
-        const [p1, p2] = queue.splice(0, 2);
+      if (matchingIdx !== -1) {
+        const p2 = queue.splice(matchingIdx, 1)[0];
+        const p1 = entry;
         const roomId = generateRoomId();
 
         const p1Socket = io.sockets.sockets.get(p1.socketId);
@@ -345,6 +392,7 @@ export function setupMatchmaking(io: Server): void {
           roomId,
           gameType,
           players: [p1.nickname, p2.nickname],
+          bet: chosenBet
         });
 
         if (gameType === 'blackjack') {
@@ -356,6 +404,7 @@ export function setupMatchmaking(io: Server): void {
             currentTurn: p1.userId,
             roomId,
             isBot: false,
+            bet: chosenBet
           };
           blackjackRooms.set(roomId, room);
           startRankedBlackjackRound(io, room);
@@ -366,12 +415,17 @@ export function setupMatchmaking(io: Server): void {
             roomId,
             isBot: false,
             round: 0,
+            bet: chosenBet
           };
           slotsRooms.set(roomId, room);
           io.to(roomId).emit('rankedSlotsStart', { roomId });
         }
       } else {
-        // Set bot timeout (6 seconds)
+        queue.push(entry);
+        socket.emit('queueJoined', { gameType, position: queue.length });
+        console.log(`${payload.nickname} joined ${gameType} queue at bet ${chosenBet} (size: ${queue.length})`);
+
+        // Set bot timeout (25 seconds)
         const botTimeout = setTimeout(() => {
           const currentQueue = queues.get(gameType);
           if (!currentQueue) return;
@@ -389,6 +443,7 @@ export function setupMatchmaking(io: Server): void {
             gameType,
             players: [player.nickname, 'BOT'],
             isBot: true,
+            bet: player.bet
           });
 
           if (gameType === 'blackjack') {
@@ -400,6 +455,7 @@ export function setupMatchmaking(io: Server): void {
               currentTurn: player.userId,
               roomId,
               isBot: true,
+              bet: player.bet
             };
             blackjackRooms.set(roomId, room);
             startRankedBlackjackRound(io, room);
@@ -410,6 +466,7 @@ export function setupMatchmaking(io: Server): void {
               roomId,
               isBot: true,
               round: 0,
+              bet: player.bet
             };
             slotsRooms.set(roomId, room);
             socket.emit('rankedSlotsStart', { roomId, isBot: true });

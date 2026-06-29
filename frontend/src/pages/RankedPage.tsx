@@ -9,6 +9,7 @@ const RankedPage: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [gameType, setGameType] = useState<'blackjack' | 'slots'>('blackjack');
   const [matchResult, setMatchResult] = useState<string | null>(null);
+  const [blackjackBet, setBlackjackBet] = useState<number>(300);
 
   const { user, setUser } = useAuthStore();
   const { rankedMatch, setRankedMatch } = useGameStore();
@@ -100,7 +101,7 @@ const RankedPage: React.FC = () => {
     // 6. Koniec meczu
     socket.on('matchResult', (data: any) => {
       const amIWinner = data.winnerId === user?.id;
-      setMatchResult(amIWinner ? 'Zwycięstwo! +350 żetonów.' : 'Porażka! Utracono 150 żetonów.');
+      setMatchResult(amIWinner ? `Zwycięstwo! +${data.winReward} żetonów.` : `Porażka! Utracono ${data.lossPenalty} żetonów.`);
       
       if (user) {
         setUser({
@@ -146,14 +147,12 @@ const RankedPage: React.FC = () => {
     socket.emit('rankedStand', { roomId: rankedMatch?.matchId, token: useAuthStore.getState().token });
   };
 
-
-
   const spinRanked = () => {
     socket.emit('rankedSpin', { roomId: rankedMatch?.matchId, token: useAuthStore.getState().token });
   };
 
   if (searching && !rankedMatch) {
-    return <MatchmakingOverlay gameType={gameType} onClose={() => setSearching(false)} />;
+    return <MatchmakingOverlay gameType={gameType} bet={gameType === 'blackjack' ? blackjackBet : 300} onClose={() => setSearching(false)} />;
   }
 
   return (
@@ -176,13 +175,11 @@ const RankedPage: React.FC = () => {
             </div>
           ) : rankedMatch.game === 'blackjack' ? (
             <div>
-              {/* Wynik gry punktowej */}
               <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.1rem', color: 'var(--gold)' }}>
                 Punkty: Ty ({points.player}) vs Przeciwnik ({points.opponent}) — (Do 3 zwycięstw)
               </div>
 
               <div className="blackjack-table" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {/* Dealer Area */}
                 <div className="dealer-area" style={{ textAlign: 'center' }}>
                   <span className="hand-label" style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)' }}>Krupier</span>
                   <div className="hand-cards" style={{ display: 'flex', gap: '8px', justifyContent: 'center', minHeight: '120px' }}>
@@ -195,9 +192,7 @@ const RankedPage: React.FC = () => {
 
                 <div className="blackjack-divider" style={{ borderBottom: '1px solid rgba(212,175,55,0.2)' }} />
 
-                {/* Hands columns */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-                  {/* Opponent area */}
                   <div className="opponent-area" style={{ textAlign: 'center' }}>
                     <span className="hand-label" style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)' }}>{rankedMatch.opponent}</span>
                     <div className="hand-cards" style={{ display: 'flex', gap: '8px', justifyContent: 'center', minHeight: '120px' }}>
@@ -208,7 +203,6 @@ const RankedPage: React.FC = () => {
                     <div className="score-display" style={{ marginTop: '6px', fontWeight: 'bold' }}>Wynik: {oScore}</div>
                   </div>
 
-                  {/* Player area */}
                   <div className="player-area" style={{ textAlign: 'center' }}>
                     <span className="hand-label" style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)' }}>Twoje karty</span>
                     <div className="hand-cards" style={{ display: 'flex', gap: '8px', justifyContent: 'center', minHeight: '120px' }}>
@@ -246,7 +240,6 @@ const RankedPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Slot machine UI */}
               <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.5)', padding: '20px', borderRadius: '12px', border: '3px solid var(--gold)' }}>
                 {slotSymbols.map((sym, idx) => (
                   <div key={idx} className="slot-reel" style={{ width: '80px', height: '80px', fontSize: '2rem' }}>{sym}</div>
@@ -259,22 +252,46 @@ const RankedPage: React.FC = () => {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Blackjack</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
-              Zagraj w tryb rankingowy z innym graczem. Pierwszy do 3 wygranych rozdań wygrywa 350 prawdziwych żetonów.
-            </p>
+          <div className="glass-card" style={{ padding: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
+            <div>
+              <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Blackjack</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                Zagraj w tryb rankingowy. Pierwszy do 3 wygranych rozdań wygrywa stawkę. Przegrany traci połowę stawki. Gra do 3 punktów, remis oznacza dogrywkę!
+              </p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+                <span style={{ fontWeight: '600' }}>Wybierz stawkę (🪙):</span>
+                <select 
+                  value={blackjackBet} 
+                  onChange={e => setBlackjackBet(Number(e.target.value))}
+                  style={{
+                    background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
+                    color: 'var(--gold)', padding: '6px 12px', borderRadius: 8,
+                    fontWeight: 'bold', fontSize: '1rem'
+                  }}
+                >
+                  <option value="100" style={{ background: '#0a0a0f' }}>100 🪙 (zysk +100 / strata -50)</option>
+                  <option value="300" style={{ background: '#0a0a0f' }}>300 🪙 (zysk +300 / strata -150)</option>
+                  <option value="1000" style={{ background: '#0a0a0f' }}>1 000 🪙 (zysk +1000 / strata -500)</option>
+                  <option value="5000" style={{ background: '#0a0a0f' }}>5 000 🪙 (zysk +5000 / strata -2500)</option>
+                  <option value="10000" style={{ background: '#0a0a0f' }}>10 000 🪙 (zysk +10000 / strata -5000)</option>
+                </select>
+              </div>
+            </div>
+
             <button className="btn-gold btn-full" onClick={() => handleStartSearch('blackjack')}>
-              Graj Ranked (+350 / -150)
+              Szukaj przeciwnika za {blackjackBet} 🪙
             </button>
           </div>
-          <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Slots</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
-              Wyścig automatów. Kręć darmowymi wirtualnymi żetonami do momentu ugrania 200 żetonów rankingowych.
-            </p>
+          <div className="glass-card" style={{ padding: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
+            <div>
+              <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Slots</h2>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
+                Wyścig automatów. Kręć darmowymi wirtualnymi żetonami do momentu ugrania 200 żetonów rankingowych. Stała nagroda (+300 / -150).
+              </p>
+            </div>
             <button className="btn-gold btn-full" onClick={() => handleStartSearch('slots')}>
-              Graj Ranked (+350 / -150)
+              Graj Ranked (stawka 300 🪙)
             </button>
           </div>
         </div>
