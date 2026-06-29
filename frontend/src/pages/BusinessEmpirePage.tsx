@@ -66,10 +66,15 @@ const BusinessEmpirePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<'exchange' | 'businesses' | 'properties' | 'cars'>('businesses');
   
-  // Stan wymiany żetonów
+  // Stan wymiany żetonów (Token -> USD)
   const [exchangeAmount, setExchangeAmount] = useState<number>(100);
   const [exchangeMsg, setExchangeMsg] = useState<string | null>(null);
   const [exchangeError, setExchangeError] = useState<string | null>(null);
+
+  // Stan wymiany dolarów (USD -> Token)
+  const [exchangeUsdAmount, setExchangeUsdAmount] = useState<number>(100);
+  const [exchangeUsdMsg, setExchangeUsdMsg] = useState<string | null>(null);
+  const [exchangeUsdError, setExchangeUsdError] = useState<string | null>(null);
 
   const fetchStatus = async () => {
     try {
@@ -108,6 +113,20 @@ const BusinessEmpirePage: React.FC = () => {
       fetchStatus();
     } catch (err: any) {
       setExchangeError(err.response?.data?.error || 'Błąd wymiany');
+    }
+  };
+
+  const handleExchangeUsd = async () => {
+    sfxClick();
+    setExchangeUsdMsg(null);
+    setExchangeUsdError(null);
+    try {
+      const res = await api.post('/business/exchange-usd', { dollarAmount: exchangeUsdAmount });
+      sfxWin();
+      setExchangeUsdMsg(res.data.message);
+      fetchStatus();
+    } catch (err: any) {
+      setExchangeUsdError(err.response?.data?.error || 'Błąd wymiany');
     }
   };
 
@@ -228,46 +247,93 @@ const BusinessEmpirePage: React.FC = () => {
       {/* 1. KANTOR / WYMIANA */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {activeSubTab === 'exchange' && (
-        <div className="glass-card" style={{ maxWidth: 500, margin: '0 auto', padding: 30, textAlign: 'center' }}>
-          <h3 style={{ color: 'var(--gold)', marginBottom: 15 }}>🪙 KANTOR WALUTOWY</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
-            Wymień żetony wygrane w kasynie na legalną gotówkę USD ($). <br/>
-            <strong>Kurs wymiany: 1 żeton = $1.00 USD.</strong>
-          </p>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {/* Panel Token -> USD */}
+          <div className="glass-card" style={{ flex: 1, minWidth: 280, maxWidth: 450, padding: 30, textAlign: 'center' }}>
+            <h3 style={{ color: 'var(--gold)', marginBottom: 15 }}>🪙 WYMIANA: ŻETONY ➔ DOLARY</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
+              Wymień żetony wygrane w kasynie na gotówkę USD ($). <br/>
+              <strong>Kurs: 1 żeton = $1.00 USD.</strong>
+            </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ color: '#aaa', fontWeight: 'bold' }}>Żetony:</span>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={exchangeAmount}
-                onChange={e => setExchangeAmount(Math.max(1, parseInt(e.target.value) || 0))}
-                style={{
-                  background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
-                  color: 'var(--gold)', padding: '8px 12px', borderRadius: 8,
-                  width: 120, fontWeight: 900, fontSize: '1.1rem', textAlign: 'center'
-                }}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ color: '#aaa', fontWeight: 'bold' }}>Żetony:</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={exchangeAmount}
+                  onChange={e => setExchangeAmount(Math.max(1, parseInt(e.target.value) || 0))}
+                  style={{
+                    background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
+                    color: 'var(--gold)', padding: '8px 12px', borderRadius: 8,
+                    width: 120, fontWeight: 900, fontSize: '1.1rem', textAlign: 'center'
+                  }}
+                />
+              </div>
+              
+              <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '1rem' }}>
+                Otrzymasz: $ {exchangeAmount.toFixed(2)} USD
+              </div>
+
+              {exchangeMsg && <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeMsg}</div>}
+              {exchangeError && <div style={{ color: '#e74c3c', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeError}</div>}
+
+              <button
+                onClick={handleExchange}
+                disabled={data.tokens < exchangeAmount}
+                className="btn-gold"
+                style={{ padding: '12px 30px', borderRadius: 20, marginTop: 10, width: '100%', maxWidth: 250 }}
+              >
+                Wymień na USD
+              </button>
+              <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Stan: 🪙 {data.tokens.toLocaleString()} żetonów</span>
             </div>
-            
-            <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '1rem' }}>
-              Otrzymasz: $ {exchangeAmount.toFixed(2)} USD
+          </div>
+
+          {/* Panel USD -> Token */}
+          <div className="glass-card" style={{ flex: 1, minWidth: 280, maxWidth: 450, padding: 30, textAlign: 'center' }}>
+            <h3 style={{ color: '#2ecc71', marginBottom: 15 }}>💵 WYMIANA: DOLARY ➔ ŻETONY</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 20 }}>
+              Wymień zarobione dolary ($) z powrotem na żetony do gry. <br/>
+              <strong>Kurs: $1.00 USD = 1 żeton.</strong>
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ color: '#aaa', fontWeight: 'bold' }}>Dolary ($):</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={exchangeUsdAmount}
+                  onChange={e => setExchangeUsdAmount(Math.max(1, parseInt(e.target.value) || 0))}
+                  style={{
+                    background: 'rgba(46, 204, 113, 0.1)', border: '1px solid #2ecc71',
+                    color: '#2ecc71', padding: '8px 12px', borderRadius: 8,
+                    width: 120, fontWeight: 900, fontSize: '1.1rem', textAlign: 'center'
+                  }}
+                />
+              </div>
+              
+              <div style={{ color: 'var(--gold)', fontWeight: 'bold', fontSize: '1rem' }}>
+                Otrzymasz: 🪙 {exchangeUsdAmount.toLocaleString()} żetonów
+              </div>
+
+              {exchangeUsdMsg && <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeUsdMsg}</div>}
+              {exchangeUsdError && <div style={{ color: '#e74c3c', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeUsdError}</div>}
+
+              <button
+                onClick={handleExchangeUsd}
+                disabled={data.dollars < exchangeUsdAmount}
+                className="btn-gold"
+                style={{ padding: '12px 30px', borderRadius: 20, marginTop: 10, width: '100%', maxWidth: 250, background: 'linear-gradient(135deg, #2ecc71, #27ae60)', borderColor: '#2ecc71', color: '#fff' }}
+              >
+                Wymień na Żetony
+              </button>
+              <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Stan: $ {data.dollars.toLocaleString(undefined, { minimumFractionDigits: 2 })} USD</span>
             </div>
-
-            {exchangeMsg && <div style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeMsg}</div>}
-            {exchangeError && <div style={{ color: '#e74c3c', fontWeight: 'bold', fontSize: '0.9rem' }}>{exchangeError}</div>}
-
-            <button
-              onClick={handleExchange}
-              disabled={data.tokens < exchangeAmount}
-              className="btn-gold"
-              style={{ padding: '12px 30px', borderRadius: 20, marginTop: 10, width: '100%', maxWidth: 250 }}
-            >
-              Wymień żetony
-            </button>
-            <span style={{ fontSize: '0.75rem', color: '#666' }}>Posiadasz obecnie: 🪙 {data.tokens.toLocaleString()} żetonów</span>
           </div>
         </div>
       )}

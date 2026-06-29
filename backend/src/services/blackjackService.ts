@@ -23,6 +23,7 @@ export interface GameSession {
   dealerHand: Hand;
   bet: number;
   doubled: boolean;
+  sleep?: number;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -141,8 +142,22 @@ export function stand(
 
   // Dealer draws until >= 17
   while (getHandValue(session.dealerHand) < 17) {
-    const card = session.deck.pop();
+    let card: Card | undefined = session.deck.pop();
     if (!card) break;
+
+    // Efekt zmęczenia: krupier unika fura (50% szansy)
+    if (session.sleep && session.sleep < 30 && Math.random() < 0.5) {
+      const nextHand = [...session.dealerHand, card];
+      if (getHandValue(nextHand) > 21) {
+        const safeCardIndex = session.deck.findIndex(c => getHandValue([...session.dealerHand, c]) <= 21);
+        if (safeCardIndex !== -1) {
+          const safeCard = session.deck.splice(safeCardIndex, 1)[0];
+          session.deck.push(card);
+          card = safeCard;
+        }
+      }
+    }
+
     session.dealerHand.push(card);
   }
 
@@ -169,8 +184,22 @@ export function doubleDown(
 
   // Dealer draws until >= 17
   while (getHandValue(session.dealerHand) < 17) {
-    const next = session.deck.pop();
+    let next: Card | undefined = session.deck.pop();
     if (!next) break;
+
+    // Efekt zmęczenia: krupier unika fura (50% szansy)
+    if (session.sleep && session.sleep < 30 && Math.random() < 0.5) {
+      const nextHand = [...session.dealerHand, next];
+      if (getHandValue(nextHand) > 21) {
+        const safeCardIndex = session.deck.findIndex(c => getHandValue([...session.dealerHand, c]) <= 21);
+        if (safeCardIndex !== -1) {
+          const safeCard = session.deck.splice(safeCardIndex, 1)[0];
+          session.deck.push(next);
+          next = safeCard;
+        }
+      }
+    }
+
     session.dealerHand.push(next);
   }
 
@@ -186,6 +215,7 @@ export interface GameSession {
   bet: number;
   doubled: boolean;
   happiness?: number;
+  sleep?: number;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

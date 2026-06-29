@@ -83,11 +83,11 @@ const ShopPage: React.FC = () => {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const buyHouse = async (houseId: number, price: number) => {
-    if (!user || user.tokens < price) { sfxError(); return; }
+    if (!user || user.dollars < price) { sfxError(); return; }
     try {
       sfxBuy();
-      await api.post('/shop/buy-house', { houseId });
-      setUser({ ...user, tokens: user.tokens - price });
+      const res = await api.post('/shop/buy-house', { houseId });
+      setUser({ ...user, dollars: res.data.dollars, tokens: res.data.tokens });
       fetchData();
     } catch (err) { sfxError(); console.error(err); }
   };
@@ -96,11 +96,11 @@ const ShopPage: React.FC = () => {
     const qty = quantities[itemName] || 1;
     const discount = qty >= 5 ? 0.6 : 1;
     const total = Math.round(basePrice * discount) * qty;
-    if (!user || user.tokens < total) { sfxError(); return; }
+    if (!user || user.dollars < total) { sfxError(); return; }
     try {
       sfxBuy();
       const res = await api.post('/shop/buy-item', { itemName, quantity: qty, toBag });
-      setUser({ ...user, tokens: res.data.tokens });
+      setUser({ ...user, dollars: res.data.dollars, tokens: res.data.tokens });
       if (toBag) {
         setBagItems(res.data.bagInventory || []);
         if (context?.refreshBag) context.refreshBag();
@@ -111,11 +111,11 @@ const ShopPage: React.FC = () => {
   };
 
   const buyBag = async () => {
-    if (!user || user.tokens < 30) { sfxError(); return; }
+    if (!user || user.dollars < 30) { sfxError(); return; }
     try {
       sfxBuy();
       const res = await api.post('/shop/buy-bag');
-      setUser({ ...user, tokens: res.data.tokens, hasBag: res.data.hasBag });
+      setUser({ ...user, dollars: res.data.dollars, tokens: res.data.tokens, hasBag: res.data.hasBag });
     } catch (err) { sfxError(); console.error(err); }
   };
 
@@ -192,12 +192,12 @@ const ShopPage: React.FC = () => {
                 </div>
                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: 'var(--gold)', fontWeight: '700' }}>
-                    {house.price === 0 ? 'Gratis' : `${house.price.toLocaleString()} 🪙`}
+                    {house.price === 0 ? 'Gratis' : `$ ${house.price.toLocaleString()}`}
                   </span>
                   {currentHouseId === house.id ? (
                     <span style={{ color: '#2ecc71', fontSize: '0.8rem', fontWeight: '600' }}>✓ Posiadasz</span>
                   ) : (
-                    <button className="btn-gold btn-sm" onClick={() => buyHouse(house.id, house.price)} disabled={!user || user.tokens < house.price}>
+                    <button className="btn-gold btn-sm" onClick={() => buyHouse(house.id, house.price)} disabled={!user || user.dollars < house.price}>
                       Kup
                     </button>
                   )}
@@ -314,20 +314,20 @@ const ShopPage: React.FC = () => {
                   <div style={{ textAlign: 'center' }}>
                     {discount ? (
                       <>
-                        <span style={{ textDecoration: 'line-through', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{item.price * qty} 🪙</span>
-                        <span style={{ color: '#e74c3c', fontWeight: '700', marginLeft: '6px' }}>{total} 🪙</span>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>$ {item.price * qty}</span>
+                        <span style={{ color: '#e74c3c', fontWeight: '700', marginLeft: '6px' }}>$ {total}</span>
                       </>
                     ) : (
-                      <span style={{ color: 'var(--gold)', fontWeight: '700' }}>{total} 🪙</span>
+                      <span style={{ color: 'var(--gold)', fontWeight: '700' }}>$ {total}</span>
                     )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                     <button
-                      className="btn-ghost btn-sm"
-                      style={{ flex: 1, fontSize: '0.75rem' }}
-                      onClick={() => buyItem(item.name, item.price, false)}
-                      disabled={!currentHouse?.hasFridge || !user || user.tokens < total}
+                       className="btn-ghost btn-sm"
+                       style={{ flex: 1, fontSize: '0.75rem' }}
+                       onClick={() => buyItem(item.name, item.price, false)}
+                       disabled={!currentHouse?.hasFridge || !user || user.dollars < total}
                     >
                       🧊 Lodówka
                     </button>
@@ -336,7 +336,7 @@ const ShopPage: React.FC = () => {
                         className="btn-gold btn-sm"
                         style={{ flex: 1, fontSize: '0.75rem' }}
                         onClick={() => buyItem(item.name, item.price, true)}
-                        disabled={!user || user.tokens < total}
+                        disabled={!user || user.dollars < total}
                       >
                         🎒 Plecak
                       </button>
@@ -390,12 +390,12 @@ const ShopPage: React.FC = () => {
                 Jedzenie psuje się po <strong style={{ color: 'var(--gold)' }}>5 minutach</strong> i znika z plecaka.
                 Spożywaj je z panelu bocznego w dowolnym momencie.
               </p>
-              <p style={{ color: 'var(--gold)', fontWeight: '700', marginTop: '8px' }}>30 🪙</p>
+              <p style={{ color: 'var(--gold)', fontWeight: '700', marginTop: '8px' }}>$ 30.00</p>
             </div>
             {user?.hasBag ? (
               <span style={{ color: '#2ecc71', fontWeight: '600' }}>✓ Posiadasz plecak</span>
             ) : (
-              <button className="btn-gold" onClick={buyBag} disabled={!user || user.tokens < 30}>
+              <button className="btn-gold" onClick={buyBag} disabled={!user || user.dollars < 30}>
                 Kup Plecak
               </button>
             )}

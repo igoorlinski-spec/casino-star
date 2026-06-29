@@ -60,6 +60,7 @@ router.post('/blackjack/start', async (req: Request, res: Response): Promise<voi
 
     const session = startGame(userId, bet);
     session.happiness = user.playerNeeds?.happiness ?? 100;
+    session.sleep = user.playerNeeds?.sleep ?? 100;
 
     res.json({
       gameId: userId,

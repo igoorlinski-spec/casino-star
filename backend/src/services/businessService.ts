@@ -32,7 +32,7 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     baseIncomePerMin: 5,
     upgradeMultiplier: 1.5,
     incomeMultiplier: 1.4,
-    managerPrice: 400,
+    managerPrice: 10000,
   },
   restaurant: {
     id: 'restaurant',
@@ -41,7 +41,7 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     baseIncomePerMin: 35,
     upgradeMultiplier: 1.6,
     incomeMultiplier: 1.45,
-    managerPrice: 2000,
+    managerPrice: 50000,
   },
   supermarket: {
     id: 'supermarket',
@@ -50,7 +50,7 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     baseIncomePerMin: 200,
     upgradeMultiplier: 1.7,
     incomeMultiplier: 1.5,
-    managerPrice: 30000,
+    managerPrice: 800000,
   },
   bank: {
     id: 'bank',
@@ -59,7 +59,7 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
     baseIncomePerMin: 1500,
     upgradeMultiplier: 1.8,
     incomeMultiplier: 1.55,
-    managerPrice: 50000,
+    managerPrice: 1200000,
   },
 };
 

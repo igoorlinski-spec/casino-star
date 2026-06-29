@@ -60,16 +60,16 @@ router.post('/buy-house', async (req: Request, res: Response): Promise<void> => 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) { res.status(404).json({ error: 'Użytkownik nie znaleziony' }); return; }
 
-    if (user.tokens < house.price) {
-      res.status(400).json({ error: 'Niewystarczające żetony' });
+    if (user.dollars < house.price) {
+      res.status(400).json({ error: 'Niewystarczające dolary' });
       return;
     }
 
     const [updatedUser, updatedPlayerHouse] = await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
-        data: { tokens: { decrement: house.price } },
-        select: { tokens: true },
+        data: { dollars: { decrement: house.price } },
+        select: { dollars: true, tokens: true },
       }),
       prisma.playerHouse.update({
         where: { userId },
@@ -79,7 +79,8 @@ router.post('/buy-house', async (req: Request, res: Response): Promise<void> => 
     ]);
 
     res.json({
-      message: `Kupiono ${house.name} za ${house.price} żetonów`,
+      message: `Kupiono ${house.name} za $ ${house.price.toFixed(2)} USD`,
+      dollars: updatedUser.dollars,
       tokens: updatedUser.tokens,
       playerHouse: updatedPlayerHouse,
     });
@@ -96,14 +97,14 @@ router.post('/buy-bag', async (req: Request, res: Response): Promise<void> => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) { res.status(404).json({ error: 'Użytkownik nie znaleziony' }); return; }
     if (user.hasBag) { res.status(400).json({ error: 'Posiadasz już plecak' }); return; }
-    if (user.tokens < 30) { res.status(400).json({ error: 'Potrzebujesz 30 żetonów, aby kupić plecak' }); return; }
+    if (user.dollars < 30) { res.status(400).json({ error: 'Potrzebujesz $ 30.00, aby kupić plecak' }); return; }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { tokens: { decrement: 30 }, hasBag: true },
+      data: { dollars: { decrement: 30 }, hasBag: true },
     });
 
-    res.json({ message: 'Kupiono plecak!', tokens: updatedUser.tokens, hasBag: updatedUser.hasBag });
+    res.json({ message: 'Kupiono plecak!', dollars: updatedUser.dollars, tokens: updatedUser.tokens, hasBag: updatedUser.hasBag });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
@@ -134,8 +135,8 @@ router.post('/buy-item', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!user) { res.status(404).json({ error: 'Użytkownik nie znaleziony' }); return; }
-    if (user.tokens < totalPrice) {
-      res.status(400).json({ error: `Niewystarczające żetony (potrzebujesz ${totalPrice})` });
+    if (user.dollars < totalPrice) {
+      res.status(400).json({ error: `Niewystarczające dolary (potrzebujesz $ ${totalPrice})` });
       return;
     }
 
@@ -156,7 +157,7 @@ router.post('/buy-item', async (req: Request, res: Response): Promise<void> => {
         return;
       }
 
-      await prisma.user.update({ where: { id: userId }, data: { tokens: { decrement: totalPrice } } });
+      await prisma.user.update({ where: { id: userId }, data: { dollars: { decrement: totalPrice } } });
 
       if (existingItem) {
         // Aktualizuj czas i ilość
@@ -171,10 +172,11 @@ router.post('/buy-item', async (req: Request, res: Response): Promise<void> => {
       // Wyczyść przeterminowane
       await cleanExpiredBagItems(userId);
       const updatedBag = await prisma.bagInventory.findMany({ where: { userId } });
-      const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { tokens: true } });
+      const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { dollars: true, tokens: true } });
 
       res.json({
         message: `Schowano ${quantity}x ${itemName} do plecaka${quantity >= 5 ? ' (Promocja -40%!)' : ''}`,
+        dollars: updatedUser!.dollars,
         tokens: updatedUser!.tokens,
         bagInventory: updatedBag,
         pricePerUnit,
@@ -190,7 +192,7 @@ router.post('/buy-item', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    await prisma.user.update({ where: { id: userId }, data: { tokens: { decrement: totalPrice } } });
+    await prisma.user.update({ where: { id: userId }, data: { dollars: { decrement: totalPrice } } });
     await prisma.inventory.upsert({
       where: { userId_itemName: { userId, itemName } },
       create: { userId, itemName, quantity },
@@ -198,10 +200,11 @@ router.post('/buy-item', async (req: Request, res: Response): Promise<void> => {
     });
 
     const updatedFridge = await prisma.inventory.findMany({ where: { userId } });
-    const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { tokens: true } });
+    const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { dollars: true, tokens: true } });
 
     res.json({
       message: `Kupiono ${quantity}x ${itemName} do lodówki${quantity >= 5 ? ' (Promocja -40%!)' : ''}`,
+      dollars: updatedUser!.dollars,
       tokens: updatedUser!.tokens,
       inventory: updatedFridge,
       pricePerUnit,

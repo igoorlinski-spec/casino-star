@@ -40,7 +40,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
       let uncollected = 0;
       if (!bus.hasManager) {
         const elapsedMs = now.getTime() - new Date(bus.lastCollectedAt).getTime();
-        const elapsedMins = Math.min(1440, Math.floor(elapsedMs / 60000)); // limit 24h bez menedżera
+        const elapsedMins = Math.min(180, Math.floor(elapsedMs / 60000)); // limit 3h bez menedżera
         if (elapsedMins > 0) {
           uncollected = elapsedMins * getIncomePerMin(bus.businessId, bus.level);
         }
@@ -318,7 +318,7 @@ router.post('/collect', authMiddleware, async (req: Request, res: Response): Pro
 
     const now = new Date();
     const elapsedMs = now.getTime() - new Date(bus.lastCollectedAt).getTime();
-    const elapsedMins = Math.min(1440, Math.floor(elapsedMs / 60000)); // limit 24h
+    const elapsedMins = Math.min(180, Math.floor(elapsedMs / 60000)); // limit 3h
 
     if (elapsedMins <= 0) {
       res.status(400).json({ error: 'Brak zgromadzonych zysków do odebrania (minął mniej niż 1 minuta).' });
@@ -402,6 +402,50 @@ router.post('/hire', authMiddleware, async (req: Request, res: Response): Promis
     res.json({ message: `Zatrudniono menedżera dla: ${def.name}! Zyski zbierają się teraz w pełni automatycznie.` });
   } catch (err) {
     console.error('Hire manager error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
+// POST /api/business/exchange-usd - Exchange USD for Tokens (1 USD = 1 Token)
+router.post('/exchange-usd', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { dollarAmount } = req.body;
+
+    if (!dollarAmount || typeof dollarAmount !== 'number' || dollarAmount <= 0) {
+      res.status(400).json({ error: 'Nieprawidłowa ilość dolarów' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      return;
+    }
+
+    if (user.dollars < dollarAmount) {
+      res.status(400).json({ error: 'Niewystarczająca ilość dolarów' });
+      return;
+    }
+
+    const tokensGained = Math.floor(dollarAmount);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        dollars: { decrement: dollarAmount },
+        tokens: { increment: tokensGained }
+      },
+      select: { tokens: true, dollars: true }
+    });
+
+    res.json({
+      message: `Pomyślnie wymieniono $ ${dollarAmount.toFixed(2)} USD na 🪙 ${tokensGained} żetonów!`,
+      tokens: updatedUser.tokens,
+      dollars: updatedUser.dollars
+    });
+  } catch (err) {
+    console.error('Exchange USD error:', err);
     res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
   }
 });
