@@ -180,9 +180,310 @@ const RUNNERS: Runner[] = [
   { id: 5, name: 'Carmen', emoji: '👑', color: '#2ecc71', image: '/runners/runner5.png' }
 ];
 
+// ─── CRASH GAME SUBCOMPONENT ──────────────────────────────────────────────────
+const CrashGame: React.FC<{
+  user: any;
+  setUser: (u: any) => void;
+  updateNeeds: (n: any) => void;
+  depleted: boolean;
+}> = ({ user, setUser, updateNeeds, depleted }) => {
+  const [bet, setBet] = useState(50);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isCrashed, setIsCrashed] = useState(false);
+  const [multiplier, setMultiplier] = useState(1.00);
+  const [hasCashedOut, setHasCashedOut] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const requestRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const multiplierRef = useRef(1.00);
+
+  const startCrashGame = async () => {
+    if (depleted || !user || user.tokens < bet || isPlaying) return;
+    sfxClick();
+    setLoading(true);
+    setIsPlaying(true);
+    setIsCrashed(false);
+    setMultiplier(1.00);
+    multiplierRef.current = 1.00;
+    setHasCashedOut(false);
+    setMessage(null);
+
+    try {
+      const res = await api.post('/game/crash/start', { bet });
+      setUser({ ...user, tokens: res.data.tokens });
+      
+      startTimeRef.current = Date.now();
+      const tick = () => {
+        const elapsed = (Date.now() - startTimeRef.current!) / 1000;
+        const currentMult = parseFloat(Math.pow(1.075, elapsed).toFixed(2));
+        
+        if (currentMult >= 50.00) {
+          autoCashOut(50.00);
+          return;
+        }
+
+        setMultiplier(currentMult);
+        multiplierRef.current = currentMult;
+
+        drawGraph(currentMult, false);
+
+        requestRef.current = requestAnimationFrame(tick);
+      };
+      requestRef.current = requestAnimationFrame(tick);
+    } catch (e: any) {
+      alert(e.response?.data?.error || 'Błąd');
+      setIsPlaying(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const autoCashOut = async (mult: number) => {
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    setIsPlaying(false);
+    try {
+      const res = await api.post('/game/crash/cashout', { multiplier: mult });
+      if (res.data.won) {
+        setHasCashedOut(true);
+        setMessage(res.data.message);
+        setUser({ ...user, tokens: res.data.tokens });
+        updateNeeds(res.data.needs);
+        sfxWin();
+        drawGraph(mult, false, true);
+      } else {
+        setIsCrashed(true);
+        setMessage(res.data.message);
+        updateNeeds(res.data.needs);
+        sfxLose();
+        drawGraph(res.data.crashMultiplier, true);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const cashOut = async () => {
+    if (!isPlaying || hasCashedOut || isCrashed) return;
+    sfxClick();
+    setLoading(true);
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+
+    const cashoutMult = multiplierRef.current;
+
+    try {
+      const res = await api.post('/game/crash/cashout', { multiplier: cashoutMult });
+      updateNeeds(res.data.needs);
+      if (res.data.won) {
+        setHasCashedOut(true);
+        setMessage(res.data.message);
+        setUser({ ...user, tokens: res.data.tokens });
+        sfxWin();
+        drawGraph(cashoutMult, false, true);
+      } else {
+        setIsCrashed(true);
+        setMessage(res.data.message);
+        sfxLose();
+        drawGraph(res.data.crashMultiplier, true);
+      }
+    } catch (e: any) {
+      alert(e.response?.data?.error || 'Błąd');
+    } finally {
+      setLoading(false);
+      setIsPlaying(false);
+    }
+  };
+
+  const drawGraph = (mult: number, crashed: boolean, won: boolean = false) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0a0118';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 50) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y < h; y += 50) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+
+    const startX = 50;
+    const startY = h - 50;
+    
+    const progress = Math.min(1, (mult - 1) / 10);
+    const endX = startX + (w - 150) * progress;
+    const endY = startY - (h - 150) * Math.sin(progress * Math.PI / 2);
+
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.quadraticCurveTo((startX + endX) / 2, startY, endX, endY);
+    
+    ctx.lineWidth = 4;
+    if (crashed) {
+      ctx.strokeStyle = '#ff3838';
+    } else if (won) {
+      ctx.strokeStyle = '#2ecc71';
+    } else {
+      ctx.strokeStyle = '#05d9e8';
+    }
+    ctx.shadowColor = crashed ? '#ff3838' : (won ? '#2ecc71' : '#05d9e8');
+    ctx.shadowBlur = 15;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    if (crashed) {
+      ctx.fillStyle = '#ff9f43';
+      ctx.beginPath();
+      ctx.arc(endX, endY, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ff3838';
+      ctx.beginPath();
+      ctx.arc(endX, endY, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🚀', endX, endY);
+    }
+  };
+
+  useEffect(() => {
+    drawGraph(1.00, false);
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="glass-card" style={{
+      maxWidth: 800, margin: '0 auto', padding: 24,
+      background: 'rgba(10, 1, 24, 0.85)', border: '2px solid rgba(46, 204, 113, 0.25)',
+      borderRadius: 20, boxShadow: '0 0 35px rgba(46, 204, 113, 0.1)', display: 'flex', flexDirection: 'column', gap: 20
+    }}>
+      <h2 style={{
+        textAlign: 'center', fontFamily: 'var(--font-display)', color: '#2ecc71',
+        textShadow: '0 0 15px rgba(46,204,113,0.3)', margin: 0, fontSize: '2rem', letterSpacing: '0.08em'
+      }}>
+        🚀 CRASH GAME (CASH)
+      </h2>
+
+      <div style={{ position: 'relative', width: '100%', height: 350, borderRadius: 16, overflow: 'hidden', border: '3px solid #2ecc71' }}>
+        <canvas ref={canvasRef} width={748} height={350} style={{ display: 'block', width: '100%', height: '100%' }} />
+
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none', textAlign: 'center'
+        }}>
+          <h1 style={{
+            fontSize: '3.8rem', fontWeight: 900, margin: 0,
+            color: isCrashed ? '#ff3838' : (hasCashedOut ? '#2ecc71' : '#fff'),
+            textShadow: isCrashed ? '0 0 20px #ff3838' : (hasCashedOut ? '0 0 20px #2ecc71' : '0 0 20px rgba(5,217,232,0.5)'),
+            transition: 'color 0.2s, text-shadow 0.2s'
+          }}>
+            {multiplier.toFixed(2)}x
+          </h1>
+          {isCrashed && <span style={{ color: '#ff3838', fontWeight: 900, fontSize: '1.2rem', letterSpacing: '0.1em' }}>BUM! WYBUCHŁO 💥</span>}
+          {hasCashedOut && <span style={{ color: '#2ecc71', fontWeight: 900, fontSize: '1.2rem', letterSpacing: '0.1em' }}>WYPŁACONO ✅</span>}
+        </div>
+      </div>
+
+      {message && (
+        <div style={{
+          textAlign: 'center', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: '1.05rem',
+          background: message.includes('Sukces') ? 'rgba(46,204,113,0.15)' : 'rgba(255,56,56,0.15)',
+          border: `1px solid ${message.includes('Sukces') ? '#2ecc71' : '#ff3838'}`,
+          color: message.includes('Sukces') ? '#2ecc71' : '#ff3838',
+          animation: 'bounce-in 0.4s ease'
+        }}>
+          {message}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={{ fontSize: '0.8rem', color: '#888', fontWeight: 700 }}>STAWKA (ŻETONY)</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[10, 50, 100, 500].map(val => (
+              <button
+                key={val}
+                disabled={isPlaying}
+                onClick={() => { sfxClick(); setBet(val); }}
+                style={{
+                  padding: '6px 12px', border: `1px solid ${bet === val ? '#2ecc71' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: 6, background: bet === val ? 'rgba(46,204,113,0.1)' : 'transparent',
+                  color: bet === val ? '#2ecc71' : '#aaa', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem'
+                }}
+              >
+                {val}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {isPlaying ? (
+          <button
+            onClick={cashOut}
+            disabled={loading}
+            style={{
+              padding: '16px 60px', borderRadius: 30, border: '3px solid #2ecc71',
+              background: 'linear-gradient(135deg, #2ecc71, #27ae60)', color: '#fff',
+              fontSize: '1.3rem', fontWeight: 900, cursor: 'pointer',
+              boxShadow: '0 0 30px rgba(46, 204, 113, 0.6)', letterSpacing: '0.08em',
+              transition: 'transform 0.1s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            💰 WYPŁAĆ ({(bet * multiplier).toFixed(0)} 🪙)
+          </button>
+        ) : (
+          <button
+            onClick={startCrashGame}
+            disabled={loading || depleted || !user || user.tokens < bet}
+            style={{
+              padding: '16px 60px', borderRadius: 30, border: '3px solid #2ecc71',
+              background: 'transparent', color: '#2ecc71',
+              fontSize: '1.3rem', fontWeight: 900, cursor: (depleted || user?.tokens < bet) ? 'not-allowed' : 'pointer',
+              boxShadow: '0 0 15px rgba(46, 204, 113, 0.2)', letterSpacing: '0.08em',
+              opacity: (depleted || user?.tokens < bet) ? 0.5 : 1,
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => !(depleted || user?.tokens < bet) && (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            🚀 GRASZ
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── MAIN CASINO PAGE ────────────────────────────────────────────────────────
 const CasinoPage: React.FC = () => {
-  const [mode, setMode] = useState<'blackjack' | 'slots' | 'races'>('blackjack');
+  const [mode, setMode] = useState<'blackjack' | 'slots' | 'races' | 'crash'>('blackjack');
   const [bet, setBet] = useState(25);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ text: string; type: 'win' | 'lose' | 'push' | 'bj' } | null>(null);
@@ -437,7 +738,8 @@ const CasinoPage: React.FC = () => {
         {[
           { id: 'blackjack', label: '🃏 Blackjack', color: 'var(--gold)' },
           { id: 'slots', label: '🎰 Automat', color: '#e040fb' },
-          { id: 'races', label: '🏁 Wyścigi (x5)', color: '#05d9e8' }
+          { id: 'races', label: '🏁 Wyścigi (x5)', color: '#05d9e8' },
+          { id: 'crash', label: '🚀 Crash Game', color: '#2ecc71' }
         ].map(t => (
           <button key={t.id} onClick={() => { sfxClick(); setMode(t.id as any); }}
             style={{
@@ -880,6 +1182,10 @@ const CasinoPage: React.FC = () => {
           </div>
 
         </div>
+      )}
+
+      {mode === 'crash' && (
+        <CrashGame user={user} setUser={setUser} updateNeeds={updateNeeds} depleted={depleted} />
       )}
     </div>
   );

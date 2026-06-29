@@ -590,4 +590,145 @@ router.post('/race/bet', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ────────────────────────────────────────────────────────────────────────────
+// CRASH GAME
+// ────────────────────────────────────────────────────────────────────────────
+interface CrashSession {
+  bet: number;
+  crashMultiplier: number;
+  active: boolean;
+}
+
+const crashSessions = new Map<string, CrashSession>();
+
+// POST /api/game/crash/start
+router.post('/crash/start', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { bet } = req.body;
+
+    if (!bet || typeof bet !== 'number' || bet <= 0) {
+      res.status(400).json({ error: 'Nieprawidłowa stawka' });
+      return;
+    }
+
+    // Atomowe potrącenie stawki
+    const updated = await prisma.user.updateMany({
+      where: { id: userId, tokens: { gte: bet } },
+      data: { tokens: { decrement: bet } }
+    });
+
+    if (updated.count === 0) {
+      res.status(400).json({ error: 'Niewystarczająca liczba żetonów' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { playerNeeds: true }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      return;
+    }
+
+    if (user.playerNeeds) {
+      const { sleep, hunger, hydration, happiness } = user.playerNeeds;
+      if (sleep <= 0 || hunger <= 0 || hydration <= 0 || happiness <= 0) {
+        res.status(400).json({ error: 'Jesteś zbyt zmęczony, aby grać!' });
+        return;
+      }
+    }
+
+    // Losowanie momentu krachu (crashMultiplier)
+    let crashMultiplier = 1.00;
+    if (Math.random() > 0.05) { // 5% szansy na natychmiastowy krach przy 1.00x
+      const r = Math.random();
+      crashMultiplier = parseFloat((0.97 / (1 - r)).toFixed(2));
+      if (crashMultiplier < 1.00) crashMultiplier = 1.00;
+      if (crashMultiplier > 100) crashMultiplier = parseFloat((100 + Math.random() * 5).toFixed(2));
+    }
+
+    crashSessions.set(userId, { bet, crashMultiplier, active: true });
+
+    res.json({
+      success: true,
+      message: 'Gra Crash rozpoczęta!',
+      tokens: user.tokens
+    });
+  } catch (err) {
+    console.error('Crash start error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
+// POST /api/game/crash/cashout
+router.post('/crash/cashout', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { multiplier } = req.body;
+
+    if (!multiplier || typeof multiplier !== 'number' || multiplier < 1.00) {
+      res.status(400).json({ error: 'Nieprawidłowy mnożnik wypłaty' });
+      return;
+    }
+
+    const session = crashSessions.get(userId);
+    if (!session || !session.active) {
+      res.status(400).json({ error: 'Brak aktywnej sesji gry Crash' });
+      return;
+    }
+
+    // Blokujemy podwójną wypłatę
+    session.active = false;
+    crashSessions.delete(userId);
+
+    const isSuccess = multiplier <= session.crashMultiplier;
+
+    let winnings = 0;
+    let tokensDelta = -session.bet;
+
+    if (isSuccess) {
+      winnings = Math.floor(session.bet * multiplier);
+      tokensDelta = winnings - session.bet;
+    }
+
+    // Dodanie wygranej
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { tokens: { increment: winnings } },
+      select: { tokens: true }
+    });
+
+    const needs = await applyNeedsDecay(userId, 'solo');
+
+    await prisma.playerStats.update({
+      where: { userId },
+      data: { gamesPlayed: { increment: 1 } }
+    });
+
+    await prisma.matchHistory.create({
+      data: { player1Id: userId, gameType: 'crash', tokensDelta }
+    });
+
+    res.json({
+      success: true,
+      won: isSuccess,
+      multiplier,
+      crashMultiplier: session.crashMultiplier,
+      winnings,
+      tokensDelta,
+      tokens: updatedUser.tokens,
+      needs,
+      message: isSuccess
+        ? `🚀 Sukces! Wypłaciłeś przy ${multiplier.toFixed(2)}x i wygrałeś ${winnings} żetonów!`
+        : `💥 Crash! Gra wybuchła przy ${session.crashMultiplier.toFixed(2)}x.`
+    });
+  } catch (err) {
+    console.error('Crash cashout error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
 export default router;
