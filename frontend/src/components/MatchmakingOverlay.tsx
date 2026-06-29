@@ -33,20 +33,11 @@ const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({ gameType, onClo
     }, 1000);
 
     const handleMatchFound = (data: any) => {
+      const nickname = useAuthStore.getState().user?.nickname;
+      const opponent = data.players ? data.players.find((p: string) => p !== nickname) : 'Przeciwnik';
       setRankedMatch({
-        matchId: data.matchId,
-        opponent: data.opponent,
-        playerScore: 0,
-        opponentScore: 0,
-        game: gameType,
-        status: 'playing',
-      });
-    };
-
-    const handleMatchWithBot = (data: any) => {
-      setRankedMatch({
-        matchId: data.matchId,
-        opponent: data.opponent || 'Wito Corleone (Bot)',
+        matchId: data.roomId,
+        opponent: opponent,
         playerScore: 0,
         opponentScore: 0,
         game: gameType,
@@ -55,13 +46,11 @@ const MatchmakingOverlay: React.FC<MatchmakingOverlayProps> = ({ gameType, onClo
     };
 
     socket.on('matchFound', handleMatchFound);
-    socket.on('matchWithBot', handleMatchWithBot);
 
     return () => {
       clearInterval(timer);
       socket.emit('leaveQueue', { gameType });
       socket.off('matchFound', handleMatchFound);
-      socket.off('matchWithBot', handleMatchWithBot);
     };
   }, [gameType, setRankedMatch]);
 

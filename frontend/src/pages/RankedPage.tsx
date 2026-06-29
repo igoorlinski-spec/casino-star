@@ -10,14 +10,16 @@ const RankedPage: React.FC = () => {
   const [gameType, setGameType] = useState<'blackjack' | 'slots'>('blackjack');
   const [matchResult, setMatchResult] = useState<string | null>(null);
 
-  const { user, setUser, updateNeeds } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const { rankedMatch, setRankedMatch } = useGameStore();
 
   // Socket state dla gier ranked
   const [pHand, setPHand] = useState<any[]>([]);
   const [oHand, setOHand] = useState<any[]>([]);
+  const [dHand, setDHand] = useState<any[]>([]);
   const [pScore, setPScore] = useState(0);
   const [oScore, setOScore] = useState(0);
+  const [dScore, setDScore] = useState(0);
   const [points, setPoints] = useState({ player: 0, opponent: 0 });
   const [isMyTurn, setIsMyTurn] = useState(false);
   
@@ -29,37 +31,82 @@ const RankedPage: React.FC = () => {
   useEffect(() => {
     if (!rankedMatch) return;
 
-    // Słuchaj aktualizacji stanu gry ranked
-    socket.on('gameState', (data: any) => {
-      if (data.game === 'blackjack') {
-        const isP1 = data.p1Id === socket.id;
-        setPHand(isP1 ? data.p1Hand : data.p2Hand);
-        setOHand(isP1 ? data.p2Hand : data.p1Hand);
-        setPScore(isP1 ? data.p1Score : data.p2Score);
-        setOScore(isP1 ? data.p2Score : data.p1Score);
-        setPoints({
-          player: isP1 ? data.p1Points : data.p2Points,
-          opponent: isP1 ? data.p2Points : data.p1Points,
-        });
-        setIsMyTurn(data.currentTurn === socket.id);
-      } else if (data.game === 'slots') {
-        const isP1 = data.p1Id === socket.id;
-        setMyProgress(isP1 ? data.p1Progress : data.p2Progress);
-        setOppProgress(isP1 ? data.p2Progress : data.p1Progress);
-        if (data.lastSpinResult && data.lastSpinner === socket.id) {
-          setSlotSymbols(data.lastSpinResult);
-        }
+    // 1. Początek rundy lub nowa runda
+    socket.on('rankedBlackjackRound', (data: any) => {
+      if (data.dealerVisible) {
+        setDHand([data.dealerVisible, { rank: '?', suit: 'hearts', faceDown: true }]);
+        setDScore(0);
       }
+      
+      const nickname = user?.nickname;
+      const isP1 = data.player1.nickname === nickname;
+      
+      setPoints({
+        player: isP1 ? data.player1.score : data.player2.score,
+        opponent: isP1 ? data.player2.score : data.player1.score,
+      });
+
+      setIsMyTurn(data.yourTurn === user?.id);
+
+      const oppHandSize = isP1 ? data.player2?.handSize || 2 : data.player1.handSize;
+      const placeholderCards = Array.from({ length: oppHandSize }, () => ({ rank: '?', suit: 'hearts', faceDown: true }));
+      setOHand(placeholderCards);
+      setOScore(0);
     });
 
-    socket.on('gameEnd', (data: any) => {
-      const amIWinner = data.winnerId === socket.id;
+    // 2. Kiedy dostajemy własną rękę
+    socket.on('yourHand', (data: any) => {
+      setPHand(data.hand);
+      setPScore(data.handValue);
+    });
+
+    // 3. Kiedy runda się kończy
+    socket.on('rankedBlackjackRoundResult', (data: any) => {
+      const nickname = user?.nickname;
+      const isP1 = data.player1.nickname === nickname;
+
+      setPHand(isP1 ? data.player1.hand : data.player2.hand);
+      setOHand(isP1 ? data.player2.hand : data.player1.hand);
+      
+      setPScore(isP1 ? data.player1.handValue : data.player2.handValue);
+      setOScore(isP1 ? data.player2.handValue : data.player1.handValue);
+
+      setPoints({
+        player: isP1 ? data.player1.score : data.player2.score,
+        opponent: isP1 ? data.player2.score : data.player1.score,
+      });
+
+      setDHand(data.dealerHand);
+      setDScore(data.dealerValue);
+      setIsMyTurn(false);
+    });
+
+    // 4. Obsługa slots ranked start
+    socket.on('rankedSlotsStart', () => {
+      setMyProgress(0);
+      setOppProgress(0);
+    });
+
+    // 5. Wyniki spinu ( slots ranked )
+    socket.on('rankedSpinResult', (data: any) => {
+      setMyProgress(data.virtualTokens);
+      setSlotSymbols(data.reels);
+    });
+
+    socket.on('botSpinResult', (data: any) => {
+      setOppProgress(data.virtualTokens);
+    });
+
+    // 6. Koniec meczu
+    socket.on('matchResult', (data: any) => {
+      const amIWinner = data.winnerId === user?.id;
       setMatchResult(amIWinner ? 'Zwycięstwo! +350 żetonów.' : 'Porażka! Utracono 150 żetonów.');
       
-      // Zaktualizuj stan potrzeb i waluty
-      updateNeeds(data.needs);
       if (user) {
-        setUser({ ...user, tokens: user.tokens + data.tokensDelta });
+        setUser({
+          ...user,
+          tokens: user.tokens + (amIWinner ? data.winReward : -data.lossPenalty)
+        });
       }
 
       setTimeout(() => {
@@ -68,14 +115,23 @@ const RankedPage: React.FC = () => {
         setSearching(false);
         setPHand([]);
         setOHand([]);
+        setDHand([]);
+        setDScore(0);
+        setOScore(0);
+        setPScore(0);
       }, 5000);
     });
 
     return () => {
-      socket.off('gameState');
-      socket.off('gameEnd');
+      socket.off('rankedBlackjackRound');
+      socket.off('yourHand');
+      socket.off('rankedBlackjackRoundResult');
+      socket.off('rankedSlotsStart');
+      socket.off('rankedSpinResult');
+      socket.off('botSpinResult');
+      socket.off('matchResult');
     };
-  }, [rankedMatch, user, setRankedMatch, updateNeeds, setUser]);
+  }, [rankedMatch, user, setRankedMatch, setUser]);
 
   const handleStartSearch = (type: 'blackjack' | 'slots') => {
     setGameType(type);
@@ -83,19 +139,17 @@ const RankedPage: React.FC = () => {
   };
 
   const hitRanked = () => {
-    socket.emit('rankedAction', { action: 'hit', matchId: rankedMatch?.matchId });
+    socket.emit('rankedHit', { roomId: rankedMatch?.matchId, token: useAuthStore.getState().token });
   };
 
   const standRanked = () => {
-    socket.emit('rankedAction', { action: 'stand', matchId: rankedMatch?.matchId });
+    socket.emit('rankedStand', { roomId: rankedMatch?.matchId, token: useAuthStore.getState().token });
   };
 
-  const doubleRanked = () => {
-    socket.emit('rankedAction', { action: 'double', matchId: rankedMatch?.matchId });
-  };
+
 
   const spinRanked = () => {
-    socket.emit('rankedAction', { action: 'spin', matchId: rankedMatch?.matchId });
+    socket.emit('rankedSpin', { roomId: rankedMatch?.matchId, token: useAuthStore.getState().token });
   };
 
   if (searching && !rankedMatch) {
@@ -127,37 +181,50 @@ const RankedPage: React.FC = () => {
                 Punkty: Ty ({points.player}) vs Przeciwnik ({points.opponent}) — (Do 3 zwycięstw)
               </div>
 
-              <div className="blackjack-table">
-                {/* Opponent area */}
-                <div className="dealer-area">
-                  <span className="hand-label">{rankedMatch.opponent}</span>
-                  <div className="hand-cards">
-                    {oHand.map((card, idx) => (
+              <div className="blackjack-table" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Dealer Area */}
+                <div className="dealer-area" style={{ textAlign: 'center' }}>
+                  <span className="hand-label" style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)' }}>Krupier</span>
+                  <div className="hand-cards" style={{ display: 'flex', gap: '8px', justifyContent: 'center', minHeight: '120px' }}>
+                    {dHand.map((card, idx) => (
                       <PlayingCard key={idx} card={card} />
                     ))}
                   </div>
-                  <div className="score-display">Wynik: {oScore}</div>
+                  <div className="score-display" style={{ marginTop: '6px', fontWeight: 'bold' }}>Wynik: {dScore}</div>
                 </div>
 
-                <div className="blackjack-divider" />
+                <div className="blackjack-divider" style={{ borderBottom: '1px solid rgba(212,175,55,0.2)' }} />
 
-                {/* Player area */}
-                <div className="player-area">
-                  <span className="hand-label">Twoje karty</span>
-                  <div className="hand-cards">
-                    {pHand.map((card, idx) => (
-                      <PlayingCard key={idx} card={card} />
-                    ))}
+                {/* Hands columns */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                  {/* Opponent area */}
+                  <div className="opponent-area" style={{ textAlign: 'center' }}>
+                    <span className="hand-label" style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)' }}>{rankedMatch.opponent}</span>
+                    <div className="hand-cards" style={{ display: 'flex', gap: '8px', justifyContent: 'center', minHeight: '120px' }}>
+                      {oHand.map((card, idx) => (
+                        <PlayingCard key={idx} card={card} />
+                      ))}
+                    </div>
+                    <div className="score-display" style={{ marginTop: '6px', fontWeight: 'bold' }}>Wynik: {oScore}</div>
                   </div>
-                  <div className="score-display">Wynik: {pScore}</div>
+
+                  {/* Player area */}
+                  <div className="player-area" style={{ textAlign: 'center' }}>
+                    <span className="hand-label" style={{ display: 'block', marginBottom: '10px', color: 'var(--text-secondary)' }}>Twoje karty</span>
+                    <div className="hand-cards" style={{ display: 'flex', gap: '8px', justifyContent: 'center', minHeight: '120px' }}>
+                      {pHand.map((card, idx) => (
+                        <PlayingCard key={idx} card={card} />
+                      ))}
+                    </div>
+                    <div className="score-display" style={{ marginTop: '6px', fontWeight: 'bold' }}>Wynik: {pScore}</div>
+                  </div>
                 </div>
               </div>
 
               {isMyTurn && (
-                <div className="action-buttons">
+                <div className="action-buttons" style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px' }}>
                   <button className="btn-gold" onClick={hitRanked}>Dobierz</button>
                   <button className="btn-ghost" onClick={standRanked}>Pas</button>
-                  <button className="btn-ghost" onClick={doubleRanked}>Podwój</button>
                 </div>
               )}
               {!isMyTurn && (
