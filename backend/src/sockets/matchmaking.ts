@@ -232,12 +232,9 @@ async function settleRankedMatch(
     });
 
     if (loserId) {
-      const loser = await prisma.user.findUnique({ where: { id: loserId }, select: { tokens: true } });
-      const penalty = Math.min(LOSS_PENALTY, loser?.tokens ?? 0);
-
       await prisma.user.update({
         where: { id: loserId },
-        data: { tokens: { decrement: penalty } },
+        data: { tokens: { decrement: LOSS_PENALTY } },
       });
 
       await prisma.playerStats.update({
@@ -390,7 +387,7 @@ export function setupMatchmaking(io: Server): void {
             slotsRooms.set(roomId, room);
             socket.emit('rankedSlotsStart', { roomId, isBot: true });
           }
-        }, 6000);
+        }, 25000);
 
         // Store timeout to allow cancellation
         (socket as Socket & { botTimeout?: ReturnType<typeof setTimeout> }).botTimeout = botTimeout;
