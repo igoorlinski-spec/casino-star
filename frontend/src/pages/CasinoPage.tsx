@@ -5,7 +5,7 @@ import { useGameStore } from '../stores/gameStore';
 import SlotReel from '../components/SlotReel';
 import {
   sfxCardDeal, sfxWin, sfxJackpot, sfxLose,
-  sfxSpinStart, sfxReelStop, sfxClick, sfxBuy
+  sfxSpinStart, sfxReelStop, sfxClick
 } from '../utils/sfx';
 
 // ─── SUIT MAP ────────────────────────────────────────────────────────────────
@@ -331,7 +331,7 @@ const CasinoPage: React.FC = () => {
         sfxReelStop();
 
         const isWin = d.multiplier > 0;
-        setSlotResult({ win: isWin, amount: d.winnings });
+        setSlotResult({ win: isWin, amount: d.winnings, symbols: d.reels });
         setUser({ ...user, tokens: d.tokens });
 
         if (isWin) {
