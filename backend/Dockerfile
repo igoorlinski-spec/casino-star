@@ -26,5 +26,5 @@ RUN npm run build
 # Expose port
 EXPOSE 4000
 
-# Start: run db push with accept-data-loss then start server
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist/index.js"]
+# Start the application
+CMD ["node", "dist/index.js"]
