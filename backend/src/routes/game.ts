@@ -668,7 +668,8 @@ router.post('/crash/start', async (req: Request, res: Response): Promise<void> =
     res.json({
       success: true,
       message: 'Gra Crash rozpoczęta!',
-      tokens: user.tokens
+      tokens: user.tokens,
+      crashMultiplier
     });
   } catch (err) {
     console.error('Crash start error:', err);

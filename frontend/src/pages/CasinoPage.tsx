@@ -215,11 +215,18 @@ const CrashGame: React.FC<{
       const res = await api.post('/game/crash/start', { bet });
       setUser({ ...user, tokens: res.data.tokens });
       
+      const serverCrashMult = res.data.crashMultiplier;
+
       startTimeRef.current = Date.now();
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current!) / 1000;
         const currentMult = parseFloat(Math.pow(1.075, elapsed).toFixed(2));
         
+        if (currentMult >= serverCrashMult) {
+          autoCashOut(999.00); // Wybuch na serwerze w czasie rzeczywistym
+          return;
+        }
+
         if (currentMult >= 50.00) {
           autoCashOut(50.00);
           return;
