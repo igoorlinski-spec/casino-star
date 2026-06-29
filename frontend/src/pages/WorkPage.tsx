@@ -34,9 +34,7 @@ const WorkPage: React.FC = () => {
         setBurgerBonusLevel(r.data.user.burgerBonusLevel ?? 0);
       }
     }).catch(() => {});
-  }, []);
-
-  const currentEarnPerClick = (1 + burgerBonusLevel) * Math.pow(2, burgerMultLevel);
+  }, []);  const currentEarnPerClick = 1 + burgerBonusLevel;
 
   const handleBurgerClick = async () => {
     try {
@@ -106,6 +104,9 @@ const WorkPage: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
+  // Wyliczanie rozmiaru burgera (np. poziom 0 -> 3rem, 1 -> 4.5rem, 2 -> 6rem, 3 -> 7.5rem)
+  const burgerFontSize = `${3 + burgerMultLevel * 1.5}rem`;
+
   return (
     <div>
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
@@ -135,8 +136,8 @@ const WorkPage: React.FC = () => {
               onClick={handleBurgerClick}
               style={{
                 position: 'absolute', top: burgerPos.top, left: burgerPos.left,
-                fontSize: '3rem', cursor: 'pointer', userSelect: 'none',
-                transform: 'translate(-50%, -50%)', transition: 'top 0.2s ease, left 0.2s ease'
+                fontSize: burgerFontSize, cursor: 'pointer', userSelect: 'none',
+                transform: 'translate(-50%, -50%)', transition: 'top 0.2s ease, left 0.2s ease, font-size 0.3s ease'
               }}
             >
               🍔
@@ -163,7 +164,7 @@ const WorkPage: React.FC = () => {
             {/* Ulepszenie x2 */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(241,196,15,0.3)', borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ color: '#f1c40f', fontWeight: 800, fontSize: '0.95rem' }}>🍔 Powiększ burgera x2</span>
+                <span style={{ color: '#f1c40f', fontWeight: 800, fontSize: '0.95rem' }}>🍔 Powiększ burgera</span>
                 <span style={{ color: '#aaa', fontSize: '0.8rem' }}>{burgerMultLevel}/3</span>
               </div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
@@ -172,8 +173,8 @@ const WorkPage: React.FC = () => {
                 ))}
               </div>
               <p style={{ color: '#888', fontSize: '0.78rem', marginBottom: 10 }}>
-                Mnoży zarobki x2 za każdy poziom.<br/>
-                Teraz: x{Math.pow(2, burgerMultLevel)} → Po: x{Math.pow(2, Math.min(burgerMultLevel + 1, 3))}
+                Fizycznie powiększa burgera wyświetlanego na ekranie.<br/>
+                Poziom: {burgerMultLevel}/3
               </p>
               <button
                 className="btn-gold"
@@ -188,7 +189,7 @@ const WorkPage: React.FC = () => {
             {/* Ulepszenie +1/klik */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ color: '#3498db', fontWeight: 800, fontSize: '0.95rem' }}>➕ +1 żeton/klik</span>
+                <span style={{ color: '#3498db', fontWeight: 800, fontSize: '0.95rem' }}>➕ +1 żeton/klik (maks +5)</span>
                 <span style={{ color: '#aaa', fontSize: '0.8rem' }}>{burgerBonusLevel}/5</span>
               </div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
@@ -197,8 +198,8 @@ const WorkPage: React.FC = () => {
                 ))}
               </div>
               <p style={{ color: '#888', fontSize: '0.78rem', marginBottom: 10 }}>
-                Dodaje +1 żeton do każdego kliknięcia.<br/>
-                Teraz: +{burgerBonusLevel}/klik → Po: +{Math.min(burgerBonusLevel + 1, 5)}/klik
+                Dodaje +1 żeton do bazowego zarobku za kliknięcie.<br/>
+                Teraz: +{burgerBonusLevel} żet. → Po: +{Math.min(burgerBonusLevel + 1, 5)} żet.
               </p>
               <button
                 className="btn-gold"

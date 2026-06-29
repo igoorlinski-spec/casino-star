@@ -18,9 +18,10 @@ router.post('/click', async (req: Request, res: Response): Promise<void> => {
     ]);
 
     const currentHappiness = needs?.happiness ?? 100;
-    const multLevel = user?.burgerMultLevel ?? 0;
     const bonusLevel = user?.burgerBonusLevel ?? 0;
-    const earn = (1 + bonusLevel) * Math.pow(2, multLevel);
+
+    // Zarobek = 1 + bonusLevel (maksymalnie 6)
+    const earn = 1 + bonusLevel;
 
     const [updatedUser, updatedNeeds] = await prisma.$transaction([
       prisma.user.update({
