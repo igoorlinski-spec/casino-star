@@ -84,11 +84,11 @@ export function spinPlock(happiness: number = 100): PlockSpinResult {
   // Tabela prawdopodobieństwa (Łączna szansa na wygraną = 30% (70% szans na przegraną))
   // Im większa wygrana tym mniejsza szansa.
   const winTable = [
-    { count: 4, rawChance: 0.14 * happinessMult },  // 14%
-    { count: 5, rawChance: 0.07 * happinessMult },  // 7%
-    { count: 6, rawChance: 0.04 * happinessMult },  // 4%
-    { count: 7, rawChance: 0.02 * happinessMult },  // 2%
-    { count: 8, rawChance: 0.015 * happinessMult }, // 1.5%
+    { count: 4, rawChance: 0.11 * happinessMult },  // 11%
+    { count: 5, rawChance: 0.055 * happinessMult }, // 5.5%
+    { count: 6, rawChance: 0.035 * happinessMult }, // 3.5%
+    { count: 7, rawChance: 0.017 * happinessMult }, // 1.7%
+    { count: 8, rawChance: 0.013 * happinessMult }, // 1.3%
     { count: 9, rawChance: 0.007 * happinessMult }, // 0.7%
     { count: 10, rawChance: 0.004 * happinessMult },// 0.4%
     { count: 11, rawChance: 0.002 * happinessMult },// 0.2%
