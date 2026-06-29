@@ -10,6 +10,7 @@ const RankedPage: React.FC = () => {
   const [gameType, setGameType] = useState<'blackjack' | 'slots'>('blackjack');
   const [matchResult, setMatchResult] = useState<string | null>(null);
   const [blackjackBet, setBlackjackBet] = useState<number>(300);
+  const [slotsBet, setSlotsBet] = useState<number>(300);
 
   const { user, setUser } = useAuthStore();
   const { rankedMatch, setRankedMatch } = useGameStore();
@@ -24,81 +25,98 @@ const RankedPage: React.FC = () => {
   const [points, setPoints] = useState({ player: 0, opponent: 0 });
   const [isMyTurn, setIsMyTurn] = useState(false);
   
-  // Slots Ranked
-  const [myProgress, setMyProgress] = useState(0);
-  const [oppProgress, setOppProgress] = useState(0);
-  const [slotSymbols, setSlotSymbols] = useState(['🍒', '🍋', '⭐']);
+  // Slots Ranked (turn-based)
+  const [myReels, setMyReels] = useState<string[]>(['🍒', '🍋', '⭐']);
+  const [oppReels, setOppReels] = useState<string[]>(['🍒', '🍋', '⭐']);
+  const [myMult, setMyMult] = useState<number>(0);
+  const [oppMult, setOppMult] = useState<number>(0);
 
   useEffect(() => {
     if (!rankedMatch) return;
 
-    // 1. Początek rundy lub nowa runda
+    // ── BJ Events ────────────────────────────────────────────────────────────
     socket.on('rankedBlackjackRound', (data: any) => {
       if (data.dealerVisible) {
         setDHand([data.dealerVisible, { rank: '?', suit: 'hearts', faceDown: true }]);
         setDScore(0);
       }
-      
       const nickname = user?.nickname;
       const isP1 = data.player1.nickname === nickname;
-      
       setPoints({
         player: isP1 ? data.player1.score : data.player2.score,
         opponent: isP1 ? data.player2.score : data.player1.score,
       });
-
       setIsMyTurn(data.yourTurn === user?.id);
 
       const oppHandSize = isP1 ? data.player2?.handSize || 2 : data.player1.handSize;
-      const placeholderCards = Array.from({ length: oppHandSize }, () => ({ rank: '?', suit: 'hearts', faceDown: true }));
-      setOHand(placeholderCards);
+      setOHand(Array.from({ length: oppHandSize }, () => ({ rank: '?', suit: 'hearts', faceDown: true })));
       setOScore(0);
     });
 
-    // 2. Kiedy dostajemy własną rękę
     socket.on('yourHand', (data: any) => {
       setPHand(data.hand);
       setPScore(data.handValue);
     });
 
-    // 3. Kiedy runda się kończy
     socket.on('rankedBlackjackRoundResult', (data: any) => {
       const nickname = user?.nickname;
       const isP1 = data.player1.nickname === nickname;
-
       setPHand(isP1 ? data.player1.hand : data.player2.hand);
       setOHand(isP1 ? data.player2.hand : data.player1.hand);
-      
       setPScore(isP1 ? data.player1.handValue : data.player2.handValue);
       setOScore(isP1 ? data.player2.handValue : data.player1.handValue);
-
       setPoints({
         player: isP1 ? data.player1.score : data.player2.score,
         opponent: isP1 ? data.player2.score : data.player1.score,
       });
-
       setDHand(data.dealerHand);
       setDScore(data.dealerValue);
       setIsMyTurn(false);
     });
 
-    // 4. Obsługa slots ranked start
-    socket.on('rankedSlotsStart', () => {
-      setMyProgress(0);
-      setOppProgress(0);
+    // ── Slots Events (turn-based) ───────────────────────────────────────────
+    socket.on('rankedSlotsRound', (data: any) => {
+      const isP1 = data.player1.nickname === user?.nickname;
+      setPoints({
+        player: isP1 ? data.player1.score : data.player2?.score || 0,
+        opponent: isP1 ? data.player2?.score || 0 : data.player1.score,
+      });
+      setIsMyTurn(data.currentTurn === user?.id);
+
+      const p1Data = data.player1;
+      const p2Data = data.player2;
+
+      setMyReels(isP1 ? (p1Data.reels.length ? p1Data.reels : ['🍒', '🍋', '⭐']) : (p2Data?.reels.length ? p2Data.reels : ['🍒', '🍋', '⭐']));
+      setOppReels(isP1 ? (p2Data?.reels.length ? p2Data.reels : ['🍒', '🍋', '⭐']) : (p1Data.reels.length ? p1Data.reels : ['🍒', '🍋', '⭐']));
+      setMyMult(isP1 ? p1Data.multiplier : p2Data?.multiplier || 0);
+      setOppMult(isP1 ? p2Data?.multiplier || 0 : p1Data.multiplier);
     });
 
-    // 5. Wyniki spinu ( slots ranked )
     socket.on('rankedSpinResult', (data: any) => {
-      setMyProgress(data.virtualTokens);
-      setSlotSymbols(data.reels);
+      const isMe = data.userId === user?.id;
+      if (isMe) {
+        setMyReels(data.reels);
+        setMyMult(data.multiplier);
+      } else {
+        setOppReels(data.reels);
+        setOppMult(data.multiplier);
+      }
     });
 
-    socket.on('botSpinResult', (data: any) => {
-      setOppProgress(data.virtualTokens);
+    socket.on('rankedSlotsRoundResult', (data: any) => {
+      const isP1 = data.player1.nickname === user?.nickname;
+      setPoints({
+        player: isP1 ? data.player1.score : data.player2?.score || 0,
+        opponent: isP1 ? data.player2?.score || 0 : data.player1.score,
+      });
+      setMyReels(isP1 ? data.player1.reels : data.player2?.reels || ['🍒', '🍋', '⭐']);
+      setOppReels(isP1 ? data.player2?.reels || ['🍒', '🍋', '⭐'] : data.player1.reels);
+      setMyMult(isP1 ? data.player1.multiplier : data.player2?.multiplier || 0);
+      setOppMult(isP1 ? data.player2?.multiplier || 0 : data.player1.multiplier);
+      setIsMyTurn(false);
     });
 
-    // 6. Koniec meczu
+    // ── End Game ─────────────────────────────────────────────────────────────
     socket.on('matchResult', (data: any) => {
       const amIWinner = data.winnerId === user?.id;
       setMatchResult(amIWinner ? `Zwycięstwo! +${data.winReward} żetonów.` : `Porażka! Utracono ${data.lossPenalty} żetonów.`);
@@ -120,6 +138,10 @@ const RankedPage: React.FC = () => {
         setDScore(0);
         setOScore(0);
         setPScore(0);
+        setMyReels(['🍒', '🍋', '⭐']);
+        setOppReels(['🍒', '🍋', '⭐']);
+        setMyMult(0);
+        setOppMult(0);
       }, 5000);
     });
 
@@ -127,9 +149,9 @@ const RankedPage: React.FC = () => {
       socket.off('rankedBlackjackRound');
       socket.off('yourHand');
       socket.off('rankedBlackjackRoundResult');
-      socket.off('rankedSlotsStart');
+      socket.off('rankedSlotsRound');
       socket.off('rankedSpinResult');
-      socket.off('botSpinResult');
+      socket.off('rankedSlotsRoundResult');
       socket.off('matchResult');
     };
   }, [rankedMatch, user, setRankedMatch, setUser]);
@@ -152,7 +174,7 @@ const RankedPage: React.FC = () => {
   };
 
   if (searching && !rankedMatch) {
-    return <MatchmakingOverlay gameType={gameType} bet={gameType === 'blackjack' ? blackjackBet : 300} onClose={() => setSearching(false)} />;
+    return <MatchmakingOverlay gameType={gameType} bet={gameType === 'blackjack' ? blackjackBet : slotsBet} onClose={() => setSearching(false)} />;
   }
 
   return (
@@ -228,25 +250,40 @@ const RankedPage: React.FC = () => {
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', alignItems: 'center' }}>
-              <div style={{ width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.9rem' }}>
-                  <span>Twój postęp ({myProgress}/200)</span>
-                  <span>Przeciwnik ({oppProgress}/200)</span>
+            <div>
+              <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '1.1rem', color: 'var(--gold)' }}>
+                Punkty: Ty ({points.player}) vs Przeciwnik ({points.opponent}) — (Do 3 zwycięstw)
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                  <h3 style={{ color: 'var(--text-secondary)' }}>{rankedMatch.opponent}</h3>
+                  <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.5)', padding: '12px', borderRadius: '10px', border: '2px solid rgba(212,175,55,0.3)' }}>
+                    {oppReels.map((sym, idx) => (
+                      <div key={idx} style={{ width: '60px', height: '60px', background: '#111', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', border: '1px solid #333' }}>{sym}</div>
+                    ))}
+                  </div>
+                  <div style={{ fontWeight: 'bold', color: 'var(--gold)' }}>Uzyskany mnożnik: {oppMult}x</div>
                 </div>
-                <div style={{ height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden', position: 'relative' }}>
-                  <div style={{ height: '100%', width: `${(myProgress / 200) * 100}%`, background: 'var(--gold)', transition: 'width 0.3s ease' }} />
-                  <div style={{ height: '100%', width: `${(oppProgress / 200) * 100}%`, background: 'var(--red)', position: 'absolute', top: 0, right: 0, opacity: 0.5, transition: 'width 0.3s ease' }} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                  <h3 style={{ color: 'var(--gold)' }}>Twoje Automaty</h3>
+                  <div style={{ display: 'flex', gap: '8px', background: 'rgba(0,0,0,0.5)', padding: '12px', borderRadius: '10px', border: '2px solid var(--gold)' }}>
+                    {myReels.map((sym, idx) => (
+                      <div key={idx} style={{ width: '60px', height: '60px', background: '#111', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', border: '1px solid #333' }}>{sym}</div>
+                    ))}
+                  </div>
+                  <div style={{ fontWeight: 'bold', color: 'var(--gold)' }}>Uzyskany mnożnik: {myMult}x</div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', background: 'rgba(0,0,0,0.5)', padding: '20px', borderRadius: '12px', border: '3px solid var(--gold)' }}>
-                {slotSymbols.map((sym, idx) => (
-                  <div key={idx} className="slot-reel" style={{ width: '80px', height: '80px', fontSize: '2rem' }}>{sym}</div>
-                ))}
+              <div style={{ textAlign: 'center', marginTop: '30px' }}>
+                {isMyTurn ? (
+                  <button className="btn-gold btn-lg" onClick={spinRanked}>POCIĄGNIJ DŹWIGNIĘ (SPIN)</button>
+                ) : (
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Oczekiwanie na ruch przeciwnika...</div>
+                )}
               </div>
-
-              <button className="btn-gold btn-lg" onClick={spinRanked}>SPIN</button>
             </div>
           )}
         </div>
@@ -274,7 +311,7 @@ const RankedPage: React.FC = () => {
                   <option value="300" style={{ background: '#0a0a0f' }}>300 🪙 (zysk +300 / strata -150)</option>
                   <option value="1000" style={{ background: '#0a0a0f' }}>1 000 🪙 (zysk +1000 / strata -500)</option>
                   <option value="5000" style={{ background: '#0a0a0f' }}>5 000 🪙 (zysk +5000 / strata -2500)</option>
-                  <option value="10000" style={{ background: '#0a0a0f' }}>10 000 🪙 (zysk +10000 / strata -5000)</option>
+                  <option value="10000" style={{ background: '#0a000f' }}>10 000 🪙 (zysk +10000 / strata -5000)</option>
                 </select>
               </div>
             </div>
@@ -286,12 +323,31 @@ const RankedPage: React.FC = () => {
           <div className="glass-card" style={{ padding: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
             <div>
               <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Slots</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
-                Wyścig automatów. Kręć darmowymi wirtualnymi żetonami do momentu ugrania 200 żetonów rankingowych. Stała nagroda (+300 / -150).
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                Pojedynek automatów. Wybierz stawkę i kręć na zmianę z przeciwnikiem. Lepszy mnożnik w rundzie zdobywa punkt. Gra do 3 punktów, remis oznacza dogrywkę!
               </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+                <span style={{ fontWeight: '600' }}>Wybierz stawkę (🪙):</span>
+                <select 
+                  value={slotsBet} 
+                  onChange={e => setSlotsBet(Number(e.target.value))}
+                  style={{
+                    background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
+                    color: 'var(--gold)', padding: '6px 12px', borderRadius: 8,
+                    fontWeight: 'bold', fontSize: '1rem'
+                  }}
+                >
+                  <option value="100" style={{ background: '#0a0a0f' }}>100 🪙 (zysk +100 / strata -50)</option>
+                  <option value="300" style={{ background: '#0a0a0f' }}>300 🪙 (zysk +300 / strata -150)</option>
+                  <option value="1000" style={{ background: '#0a0a0f' }}>1 000 🪙 (zysk +1000 / strata -500)</option>
+                  <option value="5000" style={{ background: '#0a0a0f' }}>5 000 🪙 (zysk +5000 / strata -2500)</option>
+                  <option value="10000" style={{ background: '#0a0a0f' }}>10 000 🪙 (zysk +10000 / strata -5000)</option>
+                </select>
+              </div>
             </div>
             <button className="btn-gold btn-full" onClick={() => handleStartSearch('slots')}>
-              Graj Ranked (stawka 300 🪙)
+              Szukaj przeciwnika za {slotsBet} 🪙
             </button>
           </div>
         </div>

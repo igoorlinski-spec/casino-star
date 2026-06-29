@@ -40,12 +40,13 @@ interface RankedBlackjackRoom {
 }
 
 interface RankedSlotsRoom {
-  player1: { socketId: string; userId: string; nickname: string; virtualTokens: number };
-  player2: { socketId: string; userId: string; nickname: string; virtualTokens: number } | null;
+  player1: { socketId: string; userId: string; nickname: string; score: number; reels: string[]; multiplier: number; spun: boolean };
+  player2: { socketId: string; userId: string; nickname: string; score: number; reels: string[]; multiplier: number; spun: boolean } | null;
   roomId: string;
   isBot: boolean;
   round: number;
   bet: number;
+  currentTurn: string;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -252,6 +253,127 @@ async function resolveRankedBlackjackRound(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Ranked Slots helpers
+// ────────────────────────────────────────────────────────────────────────────
+
+function broadcastSlotsRoundState(io: Server, room: RankedSlotsRoom) {
+  io.to(room.roomId).emit('rankedSlotsRound', {
+    player1: {
+      nickname: room.player1.nickname,
+      score: room.player1.score,
+      spun: room.player1.spun,
+      reels: room.player1.reels,
+      multiplier: room.player1.multiplier,
+    },
+    player2: room.player2
+      ? {
+          nickname: room.player2.nickname,
+          score: room.player2.score,
+          spun: room.player2.spun,
+          reels: room.player2.reels,
+          multiplier: room.player2.multiplier,
+        }
+      : null,
+    currentTurn: room.currentTurn,
+    bet: room.bet
+  });
+}
+
+function startRankedSlotsRound(io: Server, room: RankedSlotsRoom) {
+  room.player1.spun = false;
+  room.player1.reels = [];
+  room.player1.multiplier = 0;
+  if (room.player2) {
+    room.player2.spun = false;
+    room.player2.reels = [];
+    room.player2.multiplier = 0;
+  }
+  room.currentTurn = room.player1.userId;
+  broadcastSlotsRoundState(io, room);
+}
+
+function botPlaySlots(io: Server, room: RankedSlotsRoom) {
+  if (!room.player2) return;
+  const { reels, multiplier } = spin();
+  room.player2.reels = reels;
+  room.player2.multiplier = multiplier;
+  room.player2.spun = true;
+
+  io.to(room.roomId).emit('rankedSpinResult', {
+    userId: 'bot',
+    nickname: 'BOT',
+    reels,
+    multiplier
+  });
+
+  resolveRankedSlotsRound(io, room);
+}
+
+async function resolveRankedSlotsRound(io: Server, room: RankedSlotsRoom) {
+  const p1Mult = room.player1.multiplier;
+  const p2Mult = room.player2 ? room.player2.multiplier : 0;
+
+  let p1Won = false;
+  let p2Won = false;
+
+  if (p1Mult > p2Mult) {
+    p1Won = true;
+  } else if (p2Mult > p1Mult) {
+    p2Won = true;
+  }
+
+  if (p1Won) room.player1.score++;
+  if (p2Won && room.player2) room.player2.score++;
+
+  io.to(room.roomId).emit('rankedSlotsRoundResult', {
+    player1: {
+      nickname: room.player1.nickname,
+      reels: room.player1.reels,
+      multiplier: p1Mult,
+      score: room.player1.score,
+      wonRound: p1Won,
+    },
+    player2: room.player2
+      ? {
+          nickname: room.player2.nickname,
+          reels: room.player2.reels,
+          multiplier: p2Mult,
+          score: room.player2.score,
+          wonRound: p2Won,
+        }
+      : null,
+  });
+
+  // Check for match winner (first to 3 points, with overtime tie-break)
+  const score1 = room.player1.score;
+  const score2 = room.player2 ? room.player2.score : 0;
+
+  let matchEnded = false;
+  let winnerId = '';
+  let loserId: string | undefined = undefined;
+
+  if (score1 >= 3 || score2 >= 3) {
+    if (score1 > score2) {
+      matchEnded = true;
+      winnerId = room.player1.userId;
+      loserId = room.player2?.userId;
+    } else if (score2 > score1) {
+      matchEnded = true;
+      winnerId = room.player2!.userId;
+      loserId = room.player1.userId;
+    }
+  }
+
+  if (matchEnded) {
+    await settleRankedMatch(io, room.roomId, winnerId, loserId, 'slots', slotsRooms);
+  } else {
+    setTimeout(() => {
+      startRankedSlotsRound(io, room);
+    }, 3000);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Ranked settlement
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -410,15 +532,16 @@ export function setupMatchmaking(io: Server): void {
           startRankedBlackjackRound(io, room);
         } else if (gameType === 'slots') {
           const room: RankedSlotsRoom = {
-            player1: { ...p1, virtualTokens: 0 },
-            player2: { ...p2, virtualTokens: 0 },
+            player1: { ...p1, score: 0, reels: [], multiplier: 0, spun: false },
+            player2: { ...p2, score: 0, reels: [], multiplier: 0, spun: false },
             roomId,
             isBot: false,
             round: 0,
-            bet: chosenBet
+            bet: chosenBet,
+            currentTurn: p1.userId
           };
           slotsRooms.set(roomId, room);
-          io.to(roomId).emit('rankedSlotsStart', { roomId });
+          startRankedSlotsRound(io, room);
         }
       } else {
         queue.push(entry);
@@ -461,15 +584,16 @@ export function setupMatchmaking(io: Server): void {
             startRankedBlackjackRound(io, room);
           } else if (gameType === 'slots') {
             const room: RankedSlotsRoom = {
-              player1: { ...player, virtualTokens: 0 },
-              player2: { socketId: 'bot', userId: 'bot', nickname: 'BOT', virtualTokens: 0 },
+              player1: { ...player, score: 0, reels: [], multiplier: 0, spun: false },
+              player2: { socketId: 'bot', userId: 'bot', nickname: 'BOT', score: 0, reels: [], multiplier: 0, spun: false },
               roomId,
               isBot: true,
               round: 0,
-              bet: player.bet
+              bet: player.bet,
+              currentTurn: player.userId
             };
             slotsRooms.set(roomId, room);
-            socket.emit('rankedSlotsStart', { roomId, isBot: true });
+            startRankedSlotsRound(io, room);
           }
         }, 25000);
 
@@ -583,48 +707,42 @@ export function setupMatchmaking(io: Server): void {
 
       const room = slotsRooms.get(roomId);
       if (!room) return;
+      if (room.currentTurn !== payload.id) {
+        socket.emit('error', { message: 'Nie twoja kolej' });
+        return;
+      }
 
       const isP1 = room.player1.userId === payload.id;
       const player = isP1 ? room.player1 : room.player2;
       if (!player) return;
 
       const { reels, multiplier } = spin();
-      const virtualBet = 10;
-      const virtualWin = virtualBet * multiplier;
-      player.virtualTokens += virtualWin;
+      player.reels = reels;
+      player.multiplier = multiplier;
+      player.spun = true;
 
-      socket.emit('rankedSpinResult', {
+      // Rozsyłamy wyniki spinu do wszystkich w pokoju
+      io.to(room.roomId).emit('rankedSpinResult', {
+        userId: payload.id,
+        nickname: payload.nickname,
         reels,
-        multiplier,
-        virtualTokens: player.virtualTokens,
-        virtualWin,
+        multiplier
       });
 
-      room.round++;
-
-      // Bot auto-spin if bot game
-      if (room.isBot && room.player2) {
-        const botResult = spin();
-        const botWin = virtualBet * botResult.multiplier;
-        room.player2.virtualTokens += botWin;
-        socket.emit('botSpinResult', {
-          reels: botResult.reels,
-          multiplier: botResult.multiplier,
-          virtualTokens: room.player2.virtualTokens,
-        });
-      }
-
-      // Check win condition (first to 200 virtual tokens)
-      const p1Wins = room.player1.virtualTokens >= 200;
-      const p2Wins = room.player2 && room.player2.virtualTokens >= 200;
-
-      if (p1Wins || p2Wins) {
-        const winnerId = p1Wins ? room.player1.userId : room.player2!.userId;
-        const loserId = p1Wins
-          ? room.player2?.userId !== 'bot' ? room.player2?.userId : undefined
-          : room.player1.userId;
-
-        settleRankedMatch(io, roomId, winnerId, loserId, 'slots', slotsRooms);
+      if (isP1) {
+        if (room.player2) {
+          room.currentTurn = room.player2.userId;
+          broadcastSlotsRoundState(io, room);
+          if (room.isBot) {
+            setTimeout(() => {
+              botPlaySlots(io, room);
+            }, 2000);
+          }
+        } else {
+          resolveRankedSlotsRound(io, room);
+        }
+      } else {
+        resolveRankedSlotsRound(io, room);
       }
     });
 
