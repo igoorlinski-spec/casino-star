@@ -55,7 +55,7 @@ export const BUSINESSES_CATALOG: Record<string, BusinessDef> = {
   bank: {
     id: 'bank',
     name: 'Prywatny Bank 🏦',
-    basePrice: 120000,
+    basePrice: 1000000,
     baseIncomePerMin: 1500,
     upgradeMultiplier: 2.0,
     incomeMultiplier: 1.3,
