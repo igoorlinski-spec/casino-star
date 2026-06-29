@@ -642,12 +642,25 @@ router.post('/crash/start', async (req: Request, res: Response): Promise<void> =
     }
 
     // Losowanie momentu krachu (crashMultiplier)
+    // Losowanie momentu krachu (custom probability distribution)
+    const roll = Math.random();
     let crashMultiplier = 1.00;
-    if (Math.random() > 0.05) { // 5% szansy na natychmiastowy krach przy 1.00x
-      const r = Math.random();
-      crashMultiplier = parseFloat((0.97 / (1 - r)).toFixed(2));
-      if (crashMultiplier < 1.00) crashMultiplier = 1.00;
-      if (crashMultiplier > 100) crashMultiplier = parseFloat((100 + Math.random() * 5).toFixed(2));
+
+    if (roll < 0.60) {
+      // 60% szans: krach w przedziale [1.00, 2.00)
+      crashMultiplier = parseFloat((1.00 + Math.random() * 1.00).toFixed(2));
+    } else if (roll < 0.95) {
+      // 35% szans: krach w przedziale [2.00, 3.00)
+      crashMultiplier = parseFloat((2.00 + Math.random() * 1.00).toFixed(2));
+    } else if (roll < 0.995) {
+      // 4.5% szans: krach w przedziale [3.00, 5.00)
+      crashMultiplier = parseFloat((3.00 + Math.random() * 2.00).toFixed(2));
+    } else if (roll < 0.9995) {
+      // 0.45% szans: krach w przedziale [5.00, 10.00)
+      crashMultiplier = parseFloat((5.00 + Math.random() * 5.00).toFixed(2));
+    } else {
+      // 0.05% szans: krach w przedziale [10.00, 25.00]
+      crashMultiplier = parseFloat((10.00 + Math.random() * 15.00).toFixed(2));
     }
 
     crashSessions.set(userId, { bet, crashMultiplier, active: true });
