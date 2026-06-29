@@ -473,7 +473,7 @@ const CrashGame: React.FC<{
             onMouseEnter={e => !(depleted || user?.tokens < bet) && (e.currentTarget.style.transform = 'scale(1.05)')}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
-            🚀 GRASZ
+            🚀 ROZPOCZNIJ GRĘ
           </button>
         )}
       </div>
