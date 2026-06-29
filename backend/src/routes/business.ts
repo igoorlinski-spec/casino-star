@@ -83,28 +83,34 @@ router.post('/exchange', authMiddleware, async (req: Request, res: Response): Pr
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
-      return;
-    }
-
-    if (user.tokens < tokenAmount) {
-      res.status(400).json({ error: 'Niewystarczająca ilość żetonów' });
-      return;
-    }
-
     // Kurs wymiany: 1 żeton = $1 USD
     const dollarsGained = tokenAmount;
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
+    const updated = await prisma.user.updateMany({
+      where: {
+        id: userId,
+        tokens: { gte: tokenAmount }
+      },
       data: {
         tokens: { decrement: tokenAmount },
         dollars: { increment: dollarsGained }
-      },
+      }
+    });
+
+    if (updated.count === 0) {
+      res.status(400).json({ error: 'Niewystarczająca ilość żetonów (błąd współbieżności)' });
+      return;
+    }
+
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
       select: { tokens: true, dollars: true }
     });
+
+    if (!updatedUser) {
+      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      return;
+    }
 
     res.json({
       message: `Pomyślnie wymieniono 🪙 ${tokenAmount} żetonów na $ ${dollarsGained.toFixed(2)} USD!`,
@@ -418,27 +424,33 @@ router.post('/exchange-usd', authMiddleware, async (req: Request, res: Response)
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
-      return;
-    }
-
-    if (user.dollars < dollarAmount) {
-      res.status(400).json({ error: 'Niewystarczająca ilość dolarów' });
-      return;
-    }
-
     const tokensGained = Math.floor(dollarAmount);
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
+    const updated = await prisma.user.updateMany({
+      where: {
+        id: userId,
+        dollars: { gte: dollarAmount }
+      },
       data: {
         dollars: { decrement: dollarAmount },
         tokens: { increment: tokensGained }
-      },
+      }
+    });
+
+    if (updated.count === 0) {
+      res.status(400).json({ error: 'Niewystarczająca ilość dolarów (błąd współbieżności)' });
+      return;
+    }
+
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
       select: { tokens: true, dollars: true }
     });
+
+    if (!updatedUser) {
+      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      return;
+    }
 
     res.json({
       message: `Pomyślnie wymieniono $ ${dollarAmount.toFixed(2)} USD na 🪙 ${tokensGained} żetonów!`,
