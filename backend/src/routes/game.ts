@@ -33,7 +33,7 @@ router.post('/blackjack/start', async (req: Request, res: Response): Promise<voi
 
     const user = await prisma.user.findUnique({ 
       where: { id: userId }, 
-      select: { tokens: true, playerNeeds: true } 
+      select: { tokens: true, dollars: true, playerNeeds: true } 
     });
     
     if (!user) {
@@ -48,6 +48,11 @@ router.post('/blackjack/start', async (req: Request, res: Response): Promise<voi
         res.status(400).json({ error: 'Jesteś zbyt wycieńczony lub smutny, aby grać! Zadbaj o swoje potrzeby.' });
         return;
       }
+    }
+
+    if (user.tokens < 0 || user.dollars < 0) {
+      res.status(400).json({ error: 'Nie możesz grać z ujemnym stanem konta (długami)!' });
+      return;
     }
 
     if (user.tokens < bet) {
@@ -263,7 +268,7 @@ router.post('/slots/spin', async (req: Request, res: Response): Promise<void> =>
 
     const user = await prisma.user.findUnique({ 
       where: { id: userId }, 
-      select: { tokens: true, playerNeeds: true } 
+      select: { tokens: true, dollars: true, playerNeeds: true } 
     });
 
     if (!user) {
@@ -278,6 +283,11 @@ router.post('/slots/spin', async (req: Request, res: Response): Promise<void> =>
         res.status(400).json({ error: 'Jesteś zbyt wycieńczony lub smutny, aby grać! Zadbaj o swoje potrzeby.' });
         return;
       }
+    }
+
+    if (user.tokens < 0 || user.dollars < 0) {
+      res.status(400).json({ error: 'Nie możesz grać z ujemnym stanem konta (długami)!' });
+      return;
     }
 
     if (user.tokens < bet) {

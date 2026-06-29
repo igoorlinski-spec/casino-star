@@ -277,11 +277,25 @@ export function setupMatchmaking(io: Server): void {
   io.on('connection', (socket: Socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    // ── Join Queue ──────────────────────────────────────────────────────────
     socket.on('joinQueue', async ({ gameType, token }: { gameType: GameType; token: string }) => {
       const payload = verifyToken(token);
       if (!payload) {
         socket.emit('error', { message: 'Nieprawidłowy token autoryzacyjny' });
+        return;
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: payload.id },
+        select: { tokens: true, dollars: true }
+      });
+
+      if (!user) {
+        socket.emit('error', { message: 'Użytkownik nie znaleziony' });
+        return;
+      }
+
+      if (user.tokens < 0 || user.dollars < 0) {
+        socket.emit('error', { message: 'Nie możesz grać z ujemnym stanem konta (długami)!' });
         return;
       }
 
