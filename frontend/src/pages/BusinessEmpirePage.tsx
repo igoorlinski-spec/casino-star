@@ -11,6 +11,7 @@ interface BusinessItem {
   uncollected: number;
   nextUpgradeCost: number;
   incomePerMin: number;
+  lastCollectedAt: string; // ISO timestamp
 }
 
 interface RealEstateItem {
@@ -60,11 +61,26 @@ interface BusinessState {
   };
 }
 
+// ── Helper: formatuje sekundy jako hh:mm:ss ──────────────────────────
+const fmtTime = (totalSecs: number): string => {
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+};
+
 const BusinessEmpirePage: React.FC = () => {
   const { user, setUser } = useAuthStore();
   const [data, setData] = useState<BusinessState | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState<'exchange' | 'businesses' | 'properties' | 'cars'>('businesses');
+  const [now, setNow] = useState(() => Date.now());
+
+  // Tick co sekundę – dla odliczania timera
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
   
   // Stan wymiany żetonów (Token -> USD)
   const [exchangeAmount, setExchangeAmount] = useState<number>(100);
@@ -416,6 +432,53 @@ const BusinessEmpirePage: React.FC = () => {
                           <span style={{ color: '#aaa' }}>Zgromadzony zysk:</span>
                           <strong style={{ color: '#f1c40f' }}>$ {owned.uncollected.toLocaleString()} USD</strong>
                         </div>
+
+                        {/* ── TIMER ── */}
+                        {(() => {
+                          const lastMs = new Date(owned.lastCollectedAt).getTime();
+                          const elapsedSec = Math.floor((now - lastMs) / 1000);
+                          const capSec = 3 * 60 * 60; // 3 godziny
+                          const isFull = elapsedSec >= capSec;
+                          const remaining = Math.max(0, capSec - elapsedSec);
+                          const elapsed = Math.min(elapsedSec, capSec);
+                          const pct = Math.min(100, (elapsed / capSec) * 100);
+
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                              <div style={{ fontSize: '0.75rem', color: '#aaa' }}>
+                                Ostatni odbiór:{' '}
+                                <span style={{ color: '#fff' }}>
+                                  {elapsedSec < 60
+                                    ? 'przed chwilą'
+                                    : elapsedSec < 3600
+                                    ? `${Math.floor(elapsedSec / 60)} min temu`
+                                    : `${Math.floor(elapsedSec / 3600)}h ${Math.floor((elapsedSec % 3600) / 60)}min temu`}
+                                </span>
+                              </div>
+
+                              {/* Pasek postępu */}
+                              <div style={{ background: 'rgba(255,255,255,0.07)', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                                <div style={{
+                                  width: `${pct}%`,
+                                  height: '100%',
+                                  borderRadius: 6,
+                                  background: isFull
+                                    ? 'linear-gradient(90deg, #f1c40f, #e67e22)'
+                                    : 'linear-gradient(90deg, #2ecc71, #27ae60)',
+                                  transition: 'width 1s linear',
+                                }} />
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                                <span style={{ color: isFull ? '#f1c40f' : '#2ecc71', fontWeight: 'bold' }}>
+                                  {isFull ? '⚠️ LIMIT 3H — Odbierz teraz!' : `⏱ Kap za: ${fmtTime(remaining)}`}
+                                </span>
+                                <span style={{ color: '#666' }}>{Math.round(pct)}%</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <button
                           onClick={() => handleCollect(cat.id)}
                           disabled={owned.uncollected <= 0}

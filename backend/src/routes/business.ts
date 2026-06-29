@@ -50,6 +50,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response): Promise<voi
         uncollected,
         nextUpgradeCost: getUpgradeCost(bus.businessId, bus.level),
         incomePerMin: getIncomePerMin(bus.businessId, bus.level),
+        lastCollectedAt: bus.lastCollectedAt, // timestamp dla timera na froncie
       };
     });
 

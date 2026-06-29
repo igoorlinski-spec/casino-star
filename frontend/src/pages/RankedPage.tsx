@@ -15,6 +15,18 @@ const SYMBOL_EMOJI: Record<string, string> = {
 
 const toEmoji = (s: string) => SYMBOL_EMOJI[s] ?? s;
 
+// ── Tiery stawek ───────────────────────────────────────────────
+const BET_TIERS = [
+  { value: 100,    label: '100',    tier: 'Bronze',   color: '#cd7f32', bg: 'rgba(205,127,50,0.12)', emoji: '🪵' },
+  { value: 300,    label: '300',    tier: 'Silver',   color: '#aaa',    bg: 'rgba(180,180,180,0.1)', emoji: '🪨' },
+  { value: 1000,   label: '1 000',  tier: 'Gold',     color: '#f1c40f', bg: 'rgba(241,196,15,0.12)', emoji: '🪶' },
+  { value: 5000,   label: '5 000',  tier: 'Platinum', color: '#2ecc71', bg: 'rgba(46,204,113,0.12)', emoji: '💵' },
+  { value: 10000,  label: '10 000', tier: 'Diamond',  color: '#3498db', bg: 'rgba(52,152,219,0.12)', emoji: '💎' },
+  { value: 25000,  label: '25 000', tier: 'Master',   color: '#9b59b6', bg: 'rgba(155,89,182,0.14)', emoji: '👑' },
+  { value: 50000,  label: '50 000', tier: 'Legend',   color: '#e74c3c', bg: 'rgba(231,76,60,0.14)',  emoji: '🔥' },
+  { value: 100000, label: '100 000',tier: 'God',      color: '#f39c12', bg: 'rgba(243,156,18,0.18)', emoji: '⚡' },
+] as const;
+
 const SlotGrid: React.FC<{ reels: string[]; highlight?: boolean }> = ({ reels, highlight }) => (
   <div style={{
     display: 'grid',
@@ -325,63 +337,128 @@ const RankedPage: React.FC = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div className="glass-card" style={{ padding: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Blackjack</h2>
+              <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>🎴 Ranked Blackjack</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                Zagraj w tryb rankingowy. Pierwszy do 3 wygranych rozdań wygrywa stawkę. Przegrany traci połowę stawki. Gra do 3 punktów, remis oznacza dogrywkę!
+                Pierwszy do 3 wygranych rozdań wygrywa stawkę. Przegrany traci połowę stawki.
               </p>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
-                <span style={{ fontWeight: '600' }}>Wybierz stawkę (🪙):</span>
-                <select 
-                  value={blackjackBet} 
-                  onChange={e => setBlackjackBet(Number(e.target.value))}
-                  style={{
-                    background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
-                    color: 'var(--gold)', padding: '6px 12px', borderRadius: 8,
-                    fontWeight: 'bold', fontSize: '1rem'
-                  }}
-                >
-                  <option value="100" style={{ background: '#0a0a0f' }}>100 🪙 (zysk +100 / strata -50)</option>
-                  <option value="300" style={{ background: '#0a0a0f' }}>300 🪙 (zysk +300 / strata -150)</option>
-                  <option value="1000" style={{ background: '#0a0a0f' }}>1 000 🪙 (zysk +1000 / strata -500)</option>
-                  <option value="5000" style={{ background: '#0a0a0f' }}>5 000 🪙 (zysk +5000 / strata -2500)</option>
-                  <option value="10000" style={{ background: '#0a000f' }}>10 000 🪙 (zysk +10000 / strata -5000)</option>
-                </select>
+
+              <div style={{ marginBottom: '8px', fontSize: '0.85rem', color: '#aaa', fontWeight: 'bold' }}>
+                Wybierz stawkę:
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '20px' }}>
+                {BET_TIERS.map(t => (
+                  <button
+                    key={t.value}
+                    onClick={() => setBlackjackBet(t.value)}
+                    style={{
+                      padding: '10px 6px',
+                      borderRadius: 10,
+                      border: `2px solid ${blackjackBet === t.value ? t.color : 'rgba(255,255,255,0.08)'}`,
+                      background: blackjackBet === t.value ? t.bg : 'rgba(0,0,0,0.3)',
+                      color: blackjackBet === t.value ? t.color : '#888',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                      transition: 'all 0.15s',
+                      boxShadow: blackjackBet === t.value ? `0 0 12px ${t.color}44` : 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>{t.emoji}</span>
+                    <span>{t.label} 🪙</span>
+                    <span style={{ fontSize: '0.65rem', color: blackjackBet === t.value ? t.color : '#555', fontStyle: 'italic' }}>{t.tier}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Info o wybranej stawce */}
+              {(() => {
+                const t = BET_TIERS.find(x => x.value === blackjackBet)!
+                return (
+                  <div style={{
+                    background: t.bg, border: `1px solid ${t.color}44`,
+                    borderRadius: 10, padding: '10px 16px', fontSize: '0.85rem',
+                    display: 'flex', justifyContent: 'space-around', marginBottom: 16
+                  }}>
+                    <span style={{ color: '#2ecc71' }}>+{(t.value).toLocaleString()} za wygraną 🏆</span>
+                    <span style={{ color: '#e74c3c' }}>−{(t.value / 2).toLocaleString()} za przegraną 📹</span>
+                  </div>
+                );
+              })()}
             </div>
 
-            <button className="btn-gold btn-full" onClick={() => handleStartSearch('blackjack')}>
-              Szukaj przeciwnika za {blackjackBet} 🪙
+            <button
+              className="btn-gold btn-full"
+              onClick={() => handleStartSearch('blackjack')}
+              style={{ fontSize: '1rem', padding: '14px' }}
+            >
+              Szukaj przeciwnika za {BET_TIERS.find(x=>x.value===blackjackBet)?.emoji} {BET_TIERS.find(x=>x.value===blackjackBet)?.label} 🪙
             </button>
           </div>
           <div className="glass-card" style={{ padding: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', justifyContent: 'space-between' }}>
             <div>
-              <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>Ranked Slots</h2>
+              <h2 style={{ color: 'var(--gold)', marginBottom: '12px' }}>🎰 Ranked Slots</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                Pojedynek automatów. Wybierz stawkę i kręć na zmianę z przeciwnikiem. Lepszy mnożnik w rundzie zdobywa punkt. Gra do 3 punktów, remis oznacza dogrywkę!
+                Kręć na zmianę z przeciwnikiem. Lepszy mnożnik zdobywa punkt. Gra do 3 punktów, remis = dogrywka!
               </p>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
-                <span style={{ fontWeight: '600' }}>Wybierz stawkę (🪙):</span>
-                <select 
-                  value={slotsBet} 
-                  onChange={e => setSlotsBet(Number(e.target.value))}
-                  style={{
-                    background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)',
-                    color: 'var(--gold)', padding: '6px 12px', borderRadius: 8,
-                    fontWeight: 'bold', fontSize: '1rem'
-                  }}
-                >
-                  <option value="100" style={{ background: '#0a0a0f' }}>100 🪙 (zysk +100 / strata -50)</option>
-                  <option value="300" style={{ background: '#0a0a0f' }}>300 🪙 (zysk +300 / strata -150)</option>
-                  <option value="1000" style={{ background: '#0a0a0f' }}>1 000 🪙 (zysk +1000 / strata -500)</option>
-                  <option value="5000" style={{ background: '#0a0a0f' }}>5 000 🪙 (zysk +5000 / strata -2500)</option>
-                  <option value="10000" style={{ background: '#0a0a0f' }}>10 000 🪙 (zysk +10000 / strata -5000)</option>
-                </select>
+              <div style={{ marginBottom: '8px', fontSize: '0.85rem', color: '#aaa', fontWeight: 'bold' }}>
+                Wybierz stawkę:
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '20px' }}>
+                {BET_TIERS.map(t => (
+                  <button
+                    key={t.value}
+                    onClick={() => setSlotsBet(t.value)}
+                    style={{
+                      padding: '10px 6px',
+                      borderRadius: 10,
+                      border: `2px solid ${slotsBet === t.value ? t.color : 'rgba(255,255,255,0.08)'}`,
+                      background: slotsBet === t.value ? t.bg : 'rgba(0,0,0,0.3)',
+                      color: slotsBet === t.value ? t.color : '#888',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 2,
+                      transition: 'all 0.15s',
+                      boxShadow: slotsBet === t.value ? `0 0 12px ${t.color}44` : 'none',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>{t.emoji}</span>
+                    <span>{t.label} 🪙</span>
+                    <span style={{ fontSize: '0.65rem', color: slotsBet === t.value ? t.color : '#555', fontStyle: 'italic' }}>{t.tier}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Info o wybranej stawce */}
+              {(() => {
+                const t = BET_TIERS.find(x => x.value === slotsBet)!
+                return (
+                  <div style={{
+                    background: t.bg, border: `1px solid ${t.color}44`,
+                    borderRadius: 10, padding: '10px 16px', fontSize: '0.85rem',
+                    display: 'flex', justifyContent: 'space-around', marginBottom: 16
+                  }}>
+                    <span style={{ color: '#2ecc71' }}>+{(t.value).toLocaleString()} za wygraną 🏆</span>
+                    <span style={{ color: '#e74c3c' }}>−{(t.value / 2).toLocaleString()} za przegraną 📹</span>
+                  </div>
+                );
+              })()}
             </div>
-            <button className="btn-gold btn-full" onClick={() => handleStartSearch('slots')}>
-              Szukaj przeciwnika za {slotsBet} 🪙
+
+            <button
+              className="btn-gold btn-full"
+              onClick={() => handleStartSearch('slots')}
+              style={{ fontSize: '1rem', padding: '14px' }}
+            >
+              Szukaj przeciwnika za {BET_TIERS.find(x=>x.value===slotsBet)?.emoji} {BET_TIERS.find(x=>x.value===slotsBet)?.label} 🪙
             </button>
           </div>
         </div>
