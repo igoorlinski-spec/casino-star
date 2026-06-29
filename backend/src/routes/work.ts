@@ -148,4 +148,54 @@ router.post('/answer', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// POST /api/work/flappy-bird
+router.post('/flappy-bird', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { score } = req.body;
+
+    if (typeof score !== 'number' || score < 0) {
+      res.status(400).json({ error: 'Nieprawidłowy wynik' });
+      return;
+    }
+
+    // Maksymalny dopuszczalny wynik w jednej grze to 50
+    const validatedScore = Math.min(50, score);
+    const reward = validatedScore * 3;
+
+    const needs = await prisma.playerNeeds.findUnique({ where: { userId } });
+    if (!needs) {
+      res.status(404).json({ error: 'Nie znaleziono potrzeb' });
+      return;
+    }
+    const currentHappiness = needs.happiness;
+
+    // Spadek zadowolenia o 1 za każdy punkt, maks 15
+    const happinessLoss = Math.min(15, validatedScore);
+
+    const [updatedUser, updatedNeeds] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: { dollars: { increment: reward } },
+        select: { tokens: true, dollars: true }
+      }),
+      prisma.playerNeeds.update({
+        where: { userId },
+        data: { happiness: Math.max(0, currentHappiness - happinessLoss) }
+      })
+    ]);
+
+    res.json({
+      message: `🐦 Przeleciałeś przez ${validatedScore} rur! Zarobiłeś ${reward} $!`,
+      reward,
+      tokens: updatedUser.tokens,
+      dollars: updatedUser.dollars,
+      needs: updatedNeeds
+    });
+  } catch (err) {
+    console.error('Flappy Bird error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
 export default router;

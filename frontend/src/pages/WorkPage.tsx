@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/api';
 import { useAuthStore } from '../stores/authStore';
 import { sfxBurger, sfxWin, sfxLose, sfxBuy } from '../utils/sfx';
@@ -9,8 +9,286 @@ interface Question {
   options: { A: string; B: string; C: string; D: string; };
 }
 
+// ─── FLAPPY BIRD SUBCOMPONENT ────────────────────────────────────────────────
+const FlappyBird: React.FC<{
+  user: any;
+  setUser: (u: any) => void;
+  updateNeeds: (n: any) => void;
+}> = ({ user, setUser, updateNeeds }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [earnedMsg, setEarnedMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const birdY = useRef(150);
+  const birdVelocity = useRef(0);
+  const pipes = useRef<Array<{ x: number; top: number; bottom: number; passed: boolean }>>([]);
+  const frameId = useRef<number | null>(null);
+  const scoreRef = useRef(0);
+
+  const jump = () => {
+    if (!isPlaying && !gameOver) {
+      startGame();
+      return;
+    }
+    if (gameOver) return;
+    birdVelocity.current = -7.5;
+  };
+
+  const startGame = () => {
+    setIsPlaying(true);
+    setGameOver(false);
+    setScore(0);
+    scoreRef.current = 0;
+    setEarnedMsg(null);
+    birdY.current = 150;
+    birdVelocity.current = 0;
+    pipes.current = [
+      { x: 400, top: 100, bottom: 100, passed: false },
+      { x: 600, top: 80, bottom: 120, passed: false },
+    ];
+  };
+
+  const handleGameOver = async () => {
+    setGameOver(true);
+    setIsPlaying(false);
+    if (frameId.current) cancelAnimationFrame(frameId.current);
+    
+    const finalScore = scoreRef.current;
+    if (finalScore > highScore) setHighScore(finalScore);
+
+    setLoading(true);
+    try {
+      const res = await api.post('/work/flappy-bird', { score: finalScore });
+      setEarnedMsg(res.data.message);
+      updateNeeds(res.data.needs);
+      if (user) setUser({ ...user, tokens: res.data.tokens, dollars: res.data.dollars });
+      sfxWin();
+    } catch (e) {
+      console.error(e);
+      sfxLose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        jump();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isPlaying, gameOver]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let frameCount = 0;
+
+    const update = () => {
+      frameCount++;
+
+      // Bird physics
+      birdVelocity.current += 0.4; // Gravity
+      birdY.current += birdVelocity.current;
+
+      // Floor & ceiling collision
+      if (birdY.current > canvas.height - 12 || birdY.current < 12) {
+        handleGameOver();
+        return;
+      }
+
+      // Generate new pipes
+      if (frameCount % 100 === 0) {
+        const gap = 120;
+        const minHeight = 40;
+        const maxHeight = canvas.height - gap - minHeight;
+        const topHeight = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+        const bottomHeight = canvas.height - gap - topHeight;
+        pipes.current.push({
+          x: canvas.width,
+          top: topHeight,
+          bottom: bottomHeight,
+          passed: false
+        });
+      }
+
+      // Move and check pipes
+      for (let i = 0; i < pipes.current.length; i++) {
+        const p = pipes.current[i];
+        p.x -= 2.5; // Speed
+
+        // Collision detection
+        const birdX = 60;
+        const birdRadius = 12;
+        const pipeWidth = 55;
+
+        // Bounding box collision
+        if (birdX + birdRadius > p.x && birdX - birdRadius < p.x + pipeWidth) {
+          if (birdY.current - birdRadius < p.top || birdY.current + birdRadius > canvas.height - p.bottom) {
+            handleGameOver();
+            return;
+          }
+        }
+
+        // Score check
+        if (p.x + pipeWidth < birdX && !p.passed) {
+          p.passed = true;
+          scoreRef.current += 1;
+          setScore(scoreRef.current);
+        }
+      }
+
+      // Filter off-screen pipes
+      pipes.current = pipes.current.filter(p => p.x > -100);
+
+      // Render
+      ctx.fillStyle = '#0f021e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw background grid lines (arcade style)
+      ctx.strokeStyle = 'rgba(5, 217, 232, 0.08)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Draw pipes (neon style)
+      pipes.current.forEach(p => {
+        const pipeWidth = 55;
+        
+        // Top pipe
+        const gradTop = ctx.createLinearGradient(p.x, 0, p.x + pipeWidth, 0);
+        gradTop.addColorStop(0, '#ff2a6d');
+        gradTop.addColorStop(1, '#9b00e8');
+        ctx.fillStyle = gradTop;
+        ctx.fillRect(p.x, 0, pipeWidth, p.top);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p.x, 0, pipeWidth, p.top);
+
+        // Bottom pipe
+        const gradBot = ctx.createLinearGradient(p.x, canvas.height - p.bottom, p.x + pipeWidth, canvas.height);
+        gradBot.addColorStop(0, '#ff2a6d');
+        gradBot.addColorStop(1, '#9b00e8');
+        ctx.fillStyle = gradBot;
+        ctx.fillRect(p.x, canvas.height - p.bottom, pipeWidth, p.bottom);
+        ctx.strokeRect(p.x, canvas.height - p.bottom, pipeWidth, p.bottom);
+      });
+
+      // Draw bird (Neon cyan circle)
+      ctx.beginPath();
+      ctx.arc(60, birdY.current, 12, 0, Math.PI * 2);
+      const birdGrad = ctx.createRadialGradient(60, birdY.current, 2, 60, birdY.current, 12);
+      birdGrad.addColorStop(0, '#fff');
+      birdGrad.addColorStop(0.4, '#05d9e8');
+      birdGrad.addColorStop(1, '#005f73');
+      ctx.fillStyle = birdGrad;
+      ctx.fill();
+      ctx.shadowColor = '#05d9e8';
+      ctx.shadowBlur = 15;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0; // Reset shadow
+
+      // Draw eye
+      ctx.beginPath();
+      ctx.arc(64, birdY.current - 4, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+
+      // Draw beak
+      ctx.beginPath();
+      ctx.moveTo(70, birdY.current - 2);
+      ctx.lineTo(76, birdY.current + 2);
+      ctx.lineTo(70, birdY.current + 4);
+      ctx.fillStyle = '#f5a623';
+      ctx.fill();
+
+      frameId.current = requestAnimationFrame(update);
+    };
+
+    frameId.current = requestAnimationFrame(update);
+
+    return () => {
+      if (frameId.current) cancelAnimationFrame(frameId.current);
+    };
+  }, [isPlaying]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 480, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+        <span>Wynik: <strong style={{ color: 'var(--gold)' }}>{score}</strong></span>
+        <span>Rekord: <strong style={{ color: '#05d9e8' }}>{highScore}</strong></span>
+      </div>
+
+      <div style={{ position: 'relative', width: 480, height: 320, background: '#0f021e', border: '3px solid #ff2a6d', borderRadius: 16, overflow: 'hidden', boxShadow: '0 0 25px rgba(255, 42, 109, 0.2)' }}>
+        <canvas ref={canvasRef} width={480} height={320} onClick={jump} style={{ display: 'block', cursor: 'pointer' }} />
+        
+        {(!isPlaying || gameOver) && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(15, 2, 30, 0.85)', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 16, color: '#fff', textAlign: 'center',
+            padding: 20
+          }}>
+            {gameOver ? (
+              <>
+                <h2 style={{ color: '#ff2a6d', fontSize: '2rem', fontFamily: 'var(--font-display)', textShadow: '0 0 10px #ff2a6d' }}>KONIEC GRY 💀</h2>
+                {loading ? (
+                  <p style={{ color: '#aaa' }}>Zapisywanie wyniku i wypłata zarobku...</p>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Twój wynik: {score} rur</p>
+                    {earnedMsg && <div style={{ background: 'rgba(46,204,113,0.15)', border: '1px solid #2ecc71', color: '#2ecc71', padding: '8px 16px', borderRadius: 8, fontWeight: 700 }}>{earnedMsg}</div>}
+                    <button className="btn-gold" onClick={startGame} style={{ padding: '10px 24px', fontSize: '1rem' }}>
+                      Zagraj Ponownie 🔄
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <h2 style={{ color: '#05d9e8', fontSize: '1.8rem', fontFamily: 'var(--font-display)', textShadow: '0 0 10px #05d9e8' }}>FLAPPY BIRD 🐦</h2>
+                <p style={{ color: '#ccc', fontSize: '0.85rem', maxWidth: 300 }}>
+                  Steruj ptakiem za pomocą <strong style={{ color: '#fff' }}>Spacji</strong> lub <strong style={{ color: '#fff' }}>Kliknięcia</strong>. Omijaj fioletowo-różowe rury.<br />
+                  <span style={{ color: '#2ecc71', fontWeight: 800 }}>Zarobek: 3 $ za każdą ominiętą rurę!</span>
+                </p>
+                <button className="btn-gold" onClick={startGame} style={{ padding: '12px 28px', fontSize: '1rem' }}>
+                  Rozpocznij Pracę 🚀
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const WorkPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'mcdonalds' | 'school'>('mcdonalds');
+  const [activeTab, setActiveTab] = useState<'mcdonalds' | 'school' | 'flappy'>('mcdonalds');
 
   const [burgerPos, setBurgerPos] = useState({ top: '50%', left: '50%' });
   const [earnedToday, setEarnedToday] = useState(0);
@@ -111,14 +389,17 @@ const WorkPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <button className={activeTab === 'mcdonalds' ? 'btn-gold' : 'btn-ghost'} onClick={() => setActiveTab('mcdonalds')}>
-          McDonald's (Praca zręcznościowa)
+          McDonald's (Burger)
         </button>
         <button className={activeTab === 'school' ? 'btn-gold' : 'btn-ghost'} onClick={() => setActiveTab('school')}>
-          Szkoła (Quiz matematyczny)
+          Szkoła (Matematyka)
+        </button>
+        <button className={activeTab === 'flappy' ? 'btn-gold' : 'btn-ghost'} onClick={() => setActiveTab('flappy')}>
+          Flappy Bird (Bieg)
         </button>
       </div>
 
-      {activeTab === 'mcdonalds' ? (
+      {activeTab === 'mcdonalds' && (
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
 
           {/* Panel burgera */}
@@ -213,7 +494,9 @@ const WorkPage: React.FC = () => {
 
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'school' && (
         <div className="glass-card" style={{ padding: '32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
             <span>Rozwiązuj zadania maturalne z matematyki (+15 $ za dobrą odpowiedź, -10 zadowolenia za próbę)</span>
@@ -243,6 +526,12 @@ const WorkPage: React.FC = () => {
           ) : (
             <div style={{ textAlign: 'center', padding: '40px' }}>Ładowanie zadania...</div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'flappy' && (
+        <div className="glass-card" style={{ padding: '32px' }}>
+          <FlappyBird user={user} setUser={setUser} updateNeeds={updateNeeds} />
         </div>
       )}
     </div>
