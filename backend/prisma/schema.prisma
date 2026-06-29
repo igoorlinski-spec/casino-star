@@ -23,6 +23,8 @@ model User {
   tinderHearts     Int      @default(0)
   tinderBadge      String?  @default("")
   dollars          Float    @default(0.0)
+  burgerMultLevel  Int      @default(0) // x2 per level, max 3
+  burgerBonusLevel Int      @default(0) // +1 per level, max 5
   createdAt        DateTime @default(now())
 
   playerNeeds   PlayerNeeds?
