@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api/api';
 import { useAuthStore } from '../stores/authStore';
 import { sfxBurger, sfxWin, sfxLose, sfxBuy } from '../utils/sfx';
@@ -29,16 +29,7 @@ const FlappyBird: React.FC<{
   const frameId = useRef<number | null>(null);
   const scoreRef = useRef(0);
 
-  const jump = () => {
-    if (!isPlaying && !gameOver) {
-      startGame();
-      return;
-    }
-    if (gameOver) return;
-    birdVelocity.current = -7.5;
-  };
-
-  const startGame = () => {
+  const startGame = useCallback(() => {
     setIsPlaying(true);
     setGameOver(false);
     setScore(0);
@@ -50,7 +41,16 @@ const FlappyBird: React.FC<{
       { x: 400, top: 100, bottom: 100, passed: false },
       { x: 600, top: 80, bottom: 120, passed: false },
     ];
-  };
+  }, []);
+
+  const jump = useCallback(() => {
+    if (!isPlaying && !gameOver) {
+      startGame();
+      return;
+    }
+    if (gameOver) return;
+    birdVelocity.current = -7.5;
+  }, [isPlaying, gameOver, startGame]);
 
   const handleGameOver = async () => {
     setGameOver(true);
@@ -77,14 +77,14 @@ const FlappyBird: React.FC<{
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
         e.preventDefault();
         jump();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, gameOver]);
+  }, [jump]);
 
   useEffect(() => {
     if (!isPlaying) return;
