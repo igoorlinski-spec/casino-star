@@ -4,7 +4,7 @@ import { useGameStore } from '../stores/gameStore';
 import { useAuthStore } from '../stores/authStore';
 
 interface MatchmakingOverlayProps {
-  gameType: 'blackjack' | 'slots';
+  gameType: 'blackjack' | 'slots' | 'races';
   bet?: number;
   onClose: () => void;
 }

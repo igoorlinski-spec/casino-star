@@ -70,7 +70,7 @@ export interface RankedMatch {
   opponent: string;
   playerScore: number;
   opponentScore: number;
-  game: 'blackjack' | 'slots';
+  game: 'blackjack' | 'slots' | 'races';
   status: 'searching' | 'playing' | 'finished';
 }
 

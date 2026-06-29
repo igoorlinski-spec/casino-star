@@ -174,7 +174,7 @@ interface Runner {
 const RUNNERS: Runner[] = [
   { id: 1, name: 'Scarlett', emoji: '💃', color: '#ff2a6d' },
   { id: 2, name: 'Roxanne', emoji: '👠', color: '#05d9e8' },
-  { id: 3, name: 'Lola', emoji: '💄', color: '#01012b' },
+  { id: 3, name: 'Lola', emoji: '💄', color: '#ff00e6' },
   { id: 4, name: 'Mercedes', emoji: '🕶️', color: '#f5a623' },
   { id: 5, name: 'Carmen', emoji: '👑', color: '#2ecc71' }
 ];
@@ -369,11 +369,11 @@ const CasinoPage: React.FC = () => {
         let reachedFinish = false;
         
         currentPos = {
-          1: currentPos[1] + Math.random() * 8,
-          2: currentPos[2] + Math.random() * 8,
-          3: currentPos[3] + Math.random() * 8,
-          4: currentPos[4] + Math.random() * 8,
-          5: currentPos[5] + Math.random() * 8,
+          1: currentPos[1] + Math.random() * 3.5,
+          2: currentPos[2] + Math.random() * 3.5,
+          3: currentPos[3] + Math.random() * 3.5,
+          4: currentPos[4] + Math.random() * 3.5,
+          5: currentPos[5] + Math.random() * 3.5,
         };
 
         // Koryguj pozycje, aby zwycięzca dojechał pierwszy na samym końcu

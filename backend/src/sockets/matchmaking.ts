@@ -19,13 +19,29 @@ import { applyNeedsDecay } from '../services/needsService';
 // Types
 // ────────────────────────────────────────────────────────────────────────────
 
-type GameType = 'blackjack' | 'slots';
+type GameType = 'blackjack' | 'slots' | 'races';
 
 interface QueueEntry {
   socketId: string;
   userId: string;
   nickname: string;
   bet: number;
+}
+
+interface RankedRacesRoom {
+  roomId: string;
+  bet: number;
+  players: Array<{
+    socketId: string;
+    userId: string;
+    nickname: string;
+    selectedRunner: number | null; // 1-5
+    hasBet: boolean;
+  }>;
+  timeLeft: number;
+  status: 'lobby' | 'racing' | 'done';
+  winningRunner: number | null;
+  timerId: NodeJS.Timeout | null;
 }
 
 interface RankedBlackjackRoom {
@@ -56,10 +72,12 @@ interface RankedSlotsRoom {
 const queues = new Map<GameType, QueueEntry[]>([
   ['blackjack', []],
   ['slots', []],
+  ['races', []],
 ]);
 
 const blackjackRooms = new Map<string, RankedBlackjackRoom>();
 const slotsRooms = new Map<string, RankedSlotsRoom>();
+const racesRooms = new Map<string, RankedRacesRoom>();
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -439,7 +457,111 @@ async function settleRankedMatch(
     rooms.delete(roomId);
   }
 }
+function getRacesRoomState(room: RankedRacesRoom) {
+  return {
+    roomId: room.roomId,
+    bet: room.bet,
+    players: room.players.map(p => ({
+      userId: p.userId,
+      nickname: p.nickname,
+      hasBet: p.hasBet,
+      selectedRunner: p.selectedRunner,
+    })),
+    timeLeft: room.timeLeft,
+    status: room.status,
+    winningRunner: room.winningRunner,
+  };
+}
 
+async function startRankedRace(io: Server, room: RankedRacesRoom) {
+  if (room.status !== 'lobby') return;
+  room.status = 'racing';
+
+  const winningRunner = Math.floor(Math.random() * 5) + 1;
+  room.winningRunner = winningRunner;
+
+  io.to(room.roomId).emit('rankedRacesUpdate', getRacesRoomState(room));
+
+  // 10 seconds of race animation
+  setTimeout(async () => {
+    await resolveRankedRace(io, room);
+  }, 10000);
+}
+
+async function resolveRankedRace(io: Server, room: RankedRacesRoom) {
+  room.status = 'done';
+  io.to(room.roomId).emit('rankedRacesUpdate', getRacesRoomState(room));
+
+  const winningRunner = room.winningRunner;
+  if (!winningRunner) return;
+
+  const results: Record<string, { isWin: boolean; winnings: number; tokens: number }> = {};
+
+  for (const p of room.players) {
+    if (!p.hasBet || p.selectedRunner === null) continue;
+
+    const isWin = p.selectedRunner === winningRunner;
+    const winnings = isWin ? room.bet * 5 : 0;
+    const tokensDelta = winnings - room.bet; // net delta
+
+    try {
+      let updatedUser;
+      if (isWin) {
+        updatedUser = await prisma.user.update({
+          where: { id: p.userId },
+          data: { tokens: { increment: winnings } },
+          select: { tokens: true }
+        });
+
+        await prisma.playerStats.update({
+          where: { userId: p.userId },
+          data: { rankedWins: { increment: 1 }, gamesPlayed: { increment: 1 } },
+        });
+      } else {
+        // tokens were already deducted on bet placement, so no database update for tokens here
+        updatedUser = await prisma.user.findUnique({
+          where: { id: p.userId },
+          select: { tokens: true }
+        });
+
+        await prisma.playerStats.update({
+          where: { userId: p.userId },
+          data: { rankedLosses: { increment: 1 }, gamesPlayed: { increment: 1 } },
+        });
+      }
+
+      await applyNeedsDecay(p.userId, 'ranked');
+
+      await prisma.matchHistory.create({
+        data: {
+          player1Id: p.userId,
+          gameType: 'race_ranked',
+          winnerId: isWin ? p.userId : null,
+          tokensDelta: isWin ? winnings - room.bet : -room.bet,
+        },
+      });
+
+      results[p.userId] = {
+        isWin,
+        winnings,
+        tokens: updatedUser?.tokens ?? 0
+      };
+
+    } catch (err) {
+      console.error(`Error resolving race for player ${p.userId}:`, err);
+    }
+  }
+
+  io.to(room.roomId).emit('rankedRacesResult', {
+    winningRunner,
+    results
+  });
+
+  // Clean up room after 5 seconds to let users view results
+  setTimeout(() => {
+    racesRooms.delete(room.roomId);
+  }, 5000);
+}
 // ────────────────────────────────────────────────────────────────────────────
 // Main setup
 // ────────────────────────────────────────────────────────────────────────────
@@ -482,7 +604,78 @@ export function setupMatchmaking(io: Server): void {
         socket.emit('error', { message: 'Nieznany typ gry' });
         return;
       }
+      if (gameType === 'races') {
+        // Remove from other queues first
+        for (const [, q] of queues) {
+          const idx = q.findIndex((e) => e.userId === payload.id);
+          if (idx !== -1) q.splice(idx, 1);
+        }
 
+        // Find an active lobby for this bet
+        let room = Array.from(racesRooms.values()).find(r => r.bet === chosenBet && r.status === 'lobby' && r.players.length < 5);
+
+        if (room) {
+          // Join existing room
+          room.players.push({
+            socketId: socket.id,
+            userId: payload.id,
+            nickname: payload.nickname,
+            selectedRunner: null,
+            hasBet: false,
+          });
+          socket.join(room.roomId);
+
+          socket.emit('matchFound', {
+            roomId: room.roomId,
+            gameType: 'races',
+            players: room.players.map(p => p.nickname),
+            bet: chosenBet
+          });
+
+          io.to(room.roomId).emit('rankedRacesUpdate', getRacesRoomState(room));
+        } else {
+          // Create new room
+          const roomId = generateRoomId();
+          const newRoom: RankedRacesRoom = {
+            roomId,
+            bet: chosenBet,
+            players: [{
+              socketId: socket.id,
+              userId: payload.id,
+              nickname: payload.nickname,
+              selectedRunner: null,
+              hasBet: false,
+            }],
+            timeLeft: 60,
+            status: 'lobby',
+            winningRunner: null,
+            timerId: null,
+          };
+
+          racesRooms.set(roomId, newRoom);
+          socket.join(roomId);
+
+          socket.emit('matchFound', {
+            roomId,
+            gameType: 'races',
+            players: [payload.nickname],
+            bet: chosenBet
+          });
+
+          io.to(roomId).emit('rankedRacesUpdate', getRacesRoomState(newRoom));
+
+          newRoom.timerId = setInterval(() => {
+            newRoom.timeLeft--;
+            if (newRoom.timeLeft <= 0) {
+              if (newRoom.timerId) clearInterval(newRoom.timerId);
+              startRankedRace(io, newRoom);
+            } else {
+              io.to(roomId).emit('rankedRacesUpdate', getRacesRoomState(newRoom));
+            }
+          }, 1000);
+        }
+        return;
+      }
       // Remove from any existing queue
       for (const [, q] of queues) {
         const idx = q.findIndex((e) => e.userId === payload.id);
@@ -746,6 +939,71 @@ export function setupMatchmaking(io: Server): void {
       }
     });
 
+    // ── Ranked Races Place Bet ──────────────────────────────────────────────
+    socket.on('rankedRacesPlaceBet', async ({ roomId, token, runner }: { roomId: string; token: string; runner: number }) => {
+      const payload = verifyToken(token);
+      if (!payload) {
+        socket.emit('error', { message: 'Nieprawidłowy token autoryzacyjny' });
+        return;
+      }
+
+      const room = racesRooms.get(roomId);
+      if (!room) {
+        socket.emit('error', { message: 'Nie znaleziono pokoju wyścigów' });
+        return;
+      }
+
+      if (room.status !== 'lobby') {
+        socket.emit('error', { message: 'Wyścig już wystartował lub się zakończył' });
+        return;
+      }
+
+      const player = room.players.find(p => p.userId === payload.id);
+      if (!player) {
+        socket.emit('error', { message: 'Nie jesteś w tym pokoju' });
+        return;
+      }
+
+      if (player.hasBet) {
+        socket.emit('error', { message: 'Już postawiłeś zakład' });
+        return;
+      }
+
+      if (runner < 1 || runner > 5) {
+        socket.emit('error', { message: 'Nieprawidłowy wybór zawodniczki' });
+        return;
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: payload.id },
+        select: { tokens: true }
+      });
+
+      if (!user || user.tokens < room.bet) {
+        socket.emit('error', { message: 'Niewystarczająca liczba żetonów' });
+        return;
+      }
+
+      await prisma.user.update({
+        where: { id: payload.id },
+        data: { tokens: { decrement: room.bet } }
+      });
+
+      player.selectedRunner = runner;
+      player.hasBet = true;
+
+      io.to(room.roomId).emit('rankedRacesUpdate', getRacesRoomState(room));
+
+      const allBet = room.players.every(p => p.hasBet);
+      if (allBet && room.players.length >= 2) {
+        if (room.timerId) {
+          clearInterval(room.timerId);
+          room.timerId = null;
+        }
+        startRankedRace(io, room);
+      }
+    });
+
     // ── Disconnect ──────────────────────────────────────────────────────────
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);
@@ -755,6 +1013,24 @@ export function setupMatchmaking(io: Server): void {
         const idx = queue.findIndex((e) => e.socketId === socket.id);
         if (idx !== -1) {
           queue.splice(idx, 1);
+          break;
+        }
+      }
+
+      // Remove from racesRooms
+      for (const [roomId, room] of racesRooms.entries()) {
+        const idx = room.players.findIndex(p => p.socketId === socket.id);
+        if (idx !== -1) {
+          const p = room.players[idx];
+          if (room.status === 'lobby' && !p.hasBet) {
+            room.players.splice(idx, 1);
+            if (room.players.length === 0) {
+              if (room.timerId) clearInterval(room.timerId);
+              racesRooms.delete(roomId);
+            } else {
+              io.to(roomId).emit('rankedRacesUpdate', getRacesRoomState(room));
+            }
+          }
           break;
         }
       }
