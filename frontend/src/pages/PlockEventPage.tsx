@@ -295,7 +295,7 @@ const PlockEventPage: React.FC = () => {
               { id: 'silver_badge', title: '🥈 Srebrny dymek profilu', cost: 50, desc: 'Luksusowa srebrna ikona dymku Tindera wyświetlana na czacie/profilu.' },
               { id: 'gold_badge', title: '🥇 Złoty dymek profilu', cost: 100, desc: 'Najbardziej prestiżowa złota ikona dymku Tindera.' },
               { id: '10k_tokens', title: '🪙 10 000 żetonów', cost: 200, desc: 'Zastrzyk prawdziwej gotówki do kasyna.' },
-              { id: 'kawalerka', title: '🏠 Posiadłość: Kawalerka', cost: 600, desc: 'Darmowa Kawalerka z lodówką, w pełni umeblowana.' }
+              { id: 'willa', title: '🏡 Posiadłość: Willa', cost: 800, desc: 'Darmowa Willa z lodówką, kranem i darmowym jedzeniem. Najlepszy dom!' }
             ].map(reward => {
               const count = user?.tinderHearts || 0;
               const canClaim = count >= reward.cost;

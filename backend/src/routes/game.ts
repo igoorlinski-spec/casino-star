@@ -434,7 +434,7 @@ router.post('/plock/claim', async (req: Request, res: Response): Promise<void> =
     if (rewardId === 'silver_badge') required = 50;
     else if (rewardId === 'gold_badge') required = 100;
     else if (rewardId === '10k_tokens') required = 200;
-    else if (rewardId === 'kawalerka') required = 600;
+    else if (rewardId === 'willa') required = 800;
     else {
       res.status(400).json({ error: 'Nieznana nagroda' });
       return;
@@ -466,14 +466,13 @@ router.post('/plock/claim', async (req: Request, res: Response): Promise<void> =
         data: { tokens: { increment: 10000 } }
       });
       message = '🎉 Otrzymałeś 10 000 żetonów!';
-    } else if (rewardId === 'kawalerka') {
-      // Nadpisz dom użytkownika na Kawalerkę
+    } else if (rewardId === 'willa') {
       await prisma.playerHouse.upsert({
         where: { userId },
-        update: { houseId: 2 },
-        create: { userId, houseId: 2 }
+        update: { houseId: 4 },
+        create: { userId, houseId: 4 }
       });
-      message = '🎉 Otrzymałeś darmową Kawalerkę (lodówka odblokowana)!';
+      message = '🎉 Otrzymałeś darmową Willę! Wszystkie udogodnienia odblokowane!';
     }
 
     const updatedUser = await prisma.user.findUnique({
