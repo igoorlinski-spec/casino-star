@@ -44,7 +44,7 @@ const WorkPage: React.FC = () => {
       setEarnedToday(prev => prev + earn);
       setBurgerMultLevel(res.data.burgerMultLevel ?? burgerMultLevel);
       setBurgerBonusLevel(res.data.burgerBonusLevel ?? burgerBonusLevel);
-      if (user) setUser({ ...user, tokens: res.data.tokens });
+      if (user) setUser({ ...user, tokens: res.data.tokens, dollars: res.data.dollars });
       updateNeeds(res.data.needs);
       const randTop = Math.floor(Math.random() * 70) + 15;
       const randLeft = Math.floor(Math.random() * 70) + 15;
@@ -62,7 +62,7 @@ const WorkPage: React.FC = () => {
       const res = await api.post(`/work/upgrade-${type}`);
       setBurgerMultLevel(res.data.burgerMultLevel);
       setBurgerBonusLevel(res.data.burgerBonusLevel);
-      if (user) setUser({ ...user, tokens: res.data.tokens });
+      if (user) setUser({ ...user, tokens: res.data.tokens, dollars: res.data.dollars });
       setUpgradeMsg(res.data.message);
     } catch (err: any) {
       setUpgradeMsg(err.response?.data?.error || 'Błąd zakupu');
@@ -93,9 +93,9 @@ const WorkPage: React.FC = () => {
       updateNeeds(res.data.needs);
       if (res.data.correct) {
         sfxWin();
-        setFeedback('✅ Poprawna odpowiedź! +15 żetonów');
+        setFeedback('✅ Poprawna odpowiedź! +15 $');
         setEarnedSchool(prev => prev + 15);
-        if (user) setUser({ ...user, tokens: res.data.tokens });
+        if (user) setUser({ ...user, tokens: res.data.tokens, dollars: res.data.dollars });
       } else {
         sfxLose();
         setFeedback('❌ Błędna odpowiedź! -10 Zadowolenia');
@@ -124,13 +124,13 @@ const WorkPage: React.FC = () => {
           {/* Panel burgera */}
           <div className="glass-card" style={{ flex: 2, minWidth: 320, padding: '32px', textAlign: 'center', height: '400px', position: 'relative', overflow: 'hidden', background: '#111' }}>
             <div style={{ position: 'absolute', top: '14px', left: '16px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Zarobione: <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{earnedToday} żet.</span>
+              Zarobione: <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{earnedToday} $</span>
             </div>
             <div style={{ position: 'absolute', top: '14px', right: '16px', fontSize: '0.8rem', color: '#f1c40f', fontWeight: 700 }}>
-              +{currentEarnPerClick}/klik
+              +{currentEarnPerClick} $/klik
             </div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.85rem' }}>
-              Kliknij w burgera, aby zarobić <strong style={{ color: '#f1c40f' }}>{currentEarnPerClick}</strong> żeton{currentEarnPerClick === 1 ? '' : 'ów'}.
+              Kliknij w burgera, aby zarobić <strong style={{ color: '#f1c40f' }}>{currentEarnPerClick}</strong> $.
             </p>
             <div
               onClick={handleBurgerClick}
@@ -189,7 +189,7 @@ const WorkPage: React.FC = () => {
             {/* Ulepszenie +1/klik */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(52,152,219,0.3)', borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ color: '#3498db', fontWeight: 800, fontSize: '0.95rem' }}>➕ +1 żeton/klik (maks +5)</span>
+                <span style={{ color: '#3498db', fontWeight: 800, fontSize: '0.95rem' }}>➕ +1 $/klik (maks +5)</span>
                 <span style={{ color: '#aaa', fontSize: '0.8rem' }}>{burgerBonusLevel}/5</span>
               </div>
               <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
@@ -198,8 +198,8 @@ const WorkPage: React.FC = () => {
                 ))}
               </div>
               <p style={{ color: '#888', fontSize: '0.78rem', marginBottom: 10 }}>
-                Dodaje +1 żeton do bazowego zarobku za kliknięcie.<br/>
-                Teraz: +{burgerBonusLevel} żet. → Po: +{Math.min(burgerBonusLevel + 1, 5)} żet.
+                Dodaje +1 $ do bazowego zarobku za kliknięcie.<br/>
+                Teraz: +{burgerBonusLevel} $ → Po: +{Math.min(burgerBonusLevel + 1, 5)} $
               </p>
               <button
                 className="btn-gold"
@@ -216,10 +216,10 @@ const WorkPage: React.FC = () => {
       ) : (
         <div className="glass-card" style={{ padding: '32px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            <span>Rozwiązuj zadania maturalne z matematyki (+15 żetonów za dobrą odpowiedź, -10 zadowolenia za próbę)</span>
-            <span>Suma: <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{earnedSchool} żet.</span></span>
+            <span>Rozwiązuj zadania maturalne z matematyki (+15 $ za dobrą odpowiedź, -10 zadowolenia za próbę)</span>
+            <span>Suma: <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{earnedSchool} $</span></span>
           </div>
-
+          
           {question ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ background: 'rgba(0,0,0,0.5)', padding: '24px', borderRadius: '8px', border: '1px solid var(--border-gold)', minHeight: '100px', display: 'flex', alignItems: 'center' }}>

@@ -408,20 +408,30 @@ router.post('/entertainment', async (req: Request, res: Response): Promise<void>
     } else if (activity === 'stripclub') {
       cost = 150; deltaHappiness = 100; deltaHydration = 100;
       outcomeMessage = 'Wspaniała noc w klubie nocnym!';
-      if (Math.random() < 0.20) {
-        cost += 250; event = 'accident';
-        outcomeMessage += ' ⚠️ UPS! Dziewczyna z klubu zaszła w ciążę. Musiałeś zapłacić 250 żetonów za aborcję!';
-      }
     } else {
       res.status(400).json({ error: 'Nieznana rozrywka' }); return;
     }
 
-    if (user.tokens < cost) {
-      res.status(400).json({ error: `Potrzebujesz ${cost} żetonów na tę rozrywkę!` }); return;
+    // Sprawdzenie bazowego kosztu przed ewentualnymi wypadkami losowymi (w dolarach)
+    if (user.dollars < cost) {
+      res.status(400).json({ error: `Potrzebujesz ${cost} $ na tę rozrywkę!` }); return;
+    }
+
+    // Wypadki losowe
+    if (activity === 'stripclub') {
+      if (Math.random() < 0.20) {
+        cost += 250; event = 'accident';
+        outcomeMessage += ' ⚠️ UPS! Dziewczyna z klubu zaszła w ciążę. Musiałeś zapłacić 250 $ za aborcję!';
+      }
+    } else if (activity === 'walenie_konia') {
+      if (Math.random() < 0.01) {
+        cost += 2500; event = 'accident';
+        outcomeMessage = ' ⚠️ O CHOLERA! Zerwałeś wędzidełko podczas masturbacji! Trafiłeś do szpitala. Koszt leczenia to 2500 $!';
+      }
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: userId }, data: { tokens: { decrement: cost } },
+      where: { id: userId }, data: { dollars: { decrement: cost } },
     });
     const updatedNeeds = await prisma.playerNeeds.update({
       where: { userId },
@@ -432,7 +442,7 @@ router.post('/entertainment', async (req: Request, res: Response): Promise<void>
       },
     });
 
-    res.json({ message: outcomeMessage, event, tokens: updatedUser.tokens, needs: updatedNeeds });
+    res.json({ message: outcomeMessage, event, dollars: updatedUser.dollars, tokens: updatedUser.tokens, needs: updatedNeeds });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Wewnętrzny błąd serwera' });

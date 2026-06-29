@@ -15,7 +15,7 @@ const EntertainmentPage: React.FC = () => {
       id: 'walenie_konia',
       name: 'Walenie konia 🍆',
       cost: 0,
-      description: 'Darmowa rozrywka we własnym pokoju. Poprawia humor o 5 punktów zadowolenia.',
+      description: 'Darmowa rozrywka we własnym pokoju. Poprawia humor o 5 punktów zadowolenia. Istnieje 1% szansy na zerwanie wędzidełka (szpital kosztuje 2500 $).',
     },
     {
       id: 'kino',
@@ -51,10 +51,10 @@ const EntertainmentPage: React.FC = () => {
         sfxFun();
       }
 
-      // Zaktualizuj stan potrzeb i żetony
+      // Zaktualizuj stan potrzeb, dolary i żetony
       updateNeeds(res.data.needs);
       if (user) {
-        setUser({ ...user, tokens: res.data.tokens });
+        setUser({ ...user, tokens: res.data.tokens, dollars: res.data.dollars });
       }
     } catch (err: any) {
       sfxLose();
@@ -85,7 +85,7 @@ const EntertainmentPage: React.FC = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         {activities.map((act) => {
-          const canAfford = user ? user.tokens >= act.cost : false;
+          const canAfford = user ? user.dollars >= act.cost : false;
           return (
             <div 
               key={act.id} 
@@ -98,7 +98,7 @@ const EntertainmentPage: React.FC = () => {
               <h3 style={{ color: 'var(--gold)' }}>{act.name}</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', flex: 1 }}>{act.description}</p>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-                <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Koszt: {act.cost} żet.</span>
+                <span style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Koszt: {act.cost} $</span>
                 <button 
                   className="btn-gold btn-sm" 
                   disabled={loading || !canAfford}

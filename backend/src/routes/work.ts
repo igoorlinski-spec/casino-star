@@ -13,7 +13,7 @@ router.post('/click', async (req: Request, res: Response): Promise<void> => {
     const userId = req.user!.id;
 
     const [user, needs] = await Promise.all([
-      prisma.user.findUnique({ where: { id: userId }, select: { tokens: true, burgerMultLevel: true, burgerBonusLevel: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { tokens: true, dollars: true, burgerMultLevel: true, burgerBonusLevel: true } }),
       prisma.playerNeeds.findUnique({ where: { userId } }),
     ]);
 
@@ -26,8 +26,8 @@ router.post('/click', async (req: Request, res: Response): Promise<void> => {
     const [updatedUser, updatedNeeds] = await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
-        data: { tokens: { increment: earn } },
-        select: { tokens: true, burgerMultLevel: true, burgerBonusLevel: true },
+        data: { dollars: { increment: earn } },
+        select: { tokens: true, dollars: true, burgerMultLevel: true, burgerBonusLevel: true },
       }),
       prisma.playerNeeds.update({
         where: { userId },
@@ -36,9 +36,10 @@ router.post('/click', async (req: Request, res: Response): Promise<void> => {
     ]);
 
     res.json({
-      message: `🍔 +${earn} żeton${earn === 1 ? '' : 'ów'}!`,
+      message: `🍔 +${earn} $!`,
       earn,
       tokens: updatedUser.tokens,
+      dollars: updatedUser.dollars,
       needs: updatedNeeds,
       burgerMultLevel: updatedUser.burgerMultLevel,
       burgerBonusLevel: updatedUser.burgerBonusLevel,
@@ -131,16 +132,16 @@ router.post('/answer', async (req: Request, res: Response): Promise<void> => {
 
     if (isCorrect) {
       const [updatedUser, updatedNeeds] = await prisma.$transaction([
-        prisma.user.update({ where: { id: userId }, data: { tokens: { increment: 15 } }, select: { tokens: true } }),
+        prisma.user.update({ where: { id: userId }, data: { dollars: { increment: 15 } }, select: { tokens: true, dollars: true } }),
         prisma.playerNeeds.update({ where: { userId }, data: { happiness: Math.max(0, currentHappiness - 10) } })
       ]);
-      res.json({ correct: true, message: '✅ Poprawna odpowiedź! +15 żetonów', tokens: updatedUser.tokens, needs: updatedNeeds });
+      res.json({ correct: true, message: '✅ Poprawna odpowiedź! +15 $', tokens: updatedUser.tokens, dollars: updatedUser.dollars, needs: updatedNeeds });
     } else {
       const [user, updatedNeeds] = await prisma.$transaction([
-        prisma.user.findUnique({ where: { id: userId }, select: { tokens: true } }),
+        prisma.user.findUnique({ where: { id: userId }, select: { tokens: true, dollars: true } }),
         prisma.playerNeeds.update({ where: { userId }, data: { happiness: Math.max(0, currentHappiness - 10) } })
       ]);
-      res.json({ correct: false, message: '❌ Niepoprawna odpowiedź.', tokens: user?.tokens ?? 0, needs: updatedNeeds });
+      res.json({ correct: false, message: '❌ Niepoprawna odpowiedź.', tokens: user?.tokens ?? 0, dollars: user?.dollars ?? 0, needs: updatedNeeds });
     }
   } catch (err) {
     res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
