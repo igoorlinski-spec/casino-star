@@ -20,14 +20,15 @@ interface Runner {
   name: string;
   emoji: string;
   color: string;
+  image: string;
 }
 
 const RUNNERS: Runner[] = [
-  { id: 1, name: 'Scarlett', emoji: '💃', color: '#ff2a6d' },
-  { id: 2, name: 'Roxanne', emoji: '👠', color: '#05d9e8' },
-  { id: 3, name: 'Lola', emoji: '💄', color: '#ff00e6' },
-  { id: 4, name: 'Mercedes', emoji: '🕶️', color: '#f5a623' },
-  { id: 5, name: 'Carmen', emoji: '👑', color: '#2ecc71' }
+  { id: 1, name: 'Scarlett', emoji: '💃', color: '#ff2a6d', image: '/runners/runner1.png' },
+  { id: 2, name: 'Roxanne', emoji: '👠', color: '#05d9e8', image: '/runners/runner2.png' },
+  { id: 3, name: 'Lola', emoji: '💄', color: '#ff00e6', image: '/runners/runner3.png' },
+  { id: 4, name: 'Mercedes', emoji: '🕶️', color: '#f5a623', image: '/runners/runner4.png' },
+  { id: 5, name: 'Carmen', emoji: '👑', color: '#2ecc71', image: '/runners/runner5.png' }
 ];
 
 // ── Tiery stawek ───────────────────────────────────────────────
@@ -463,9 +464,15 @@ const RankedPage: React.FC = () => {
                             <span style={{
                               fontSize: '0.75rem', fontWeight: 900, padding: '3px 8px', borderRadius: 12,
                               background: p.hasBet ? 'rgba(46,204,113,0.15)' : 'rgba(243,156,18,0.15)',
-                              color: p.hasBet ? '#2ecc71' : '#f39c12'
+                              color: p.hasBet ? '#2ecc71' : '#f39c12',
+                              display: 'flex', alignItems: 'center', gap: 6
                             }}>
-                              {p.hasBet ? `ZAKŁAD: #${p.selectedRunner} ${RUNNERS.find(r=>r.id===p.selectedRunner)?.name}` : 'WYBIERA...'}
+                              {p.hasBet ? (
+                                <>
+                                  <img src={RUNNERS.find(r=>r.id===p.selectedRunner)?.image} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover' }} />
+                                  <span>ZAKŁAD: {RUNNERS.find(r=>r.id===p.selectedRunner)?.name}</span>
+                                </>
+                              ) : 'WYBIERA...'}
                             </span>
                           </div>
                         ))}
@@ -490,7 +497,7 @@ const RankedPage: React.FC = () => {
                                 padding: '12px 24px', borderRadius: 12, background: `${chosen?.color}15`,
                                 border: `2px solid ${chosen?.color}`
                               }}>
-                                <span style={{ fontSize: '2rem' }}>{chosen?.emoji}</span>
+                                <img src={chosen?.image} alt={chosen?.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${chosen?.color}` }} />
                                 <span style={{ fontWeight: 900, color: chosen?.color, fontSize: '1.2rem' }}>{chosen?.name}</span>
                               </div>
                             </div>
@@ -513,7 +520,7 @@ const RankedPage: React.FC = () => {
                                     }}
                                   >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                      <span style={{ fontSize: '1.2rem' }}>{runner.emoji}</span>
+                                      <img src={runner.image} alt={runner.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${runner.color}` }} />
                                       <span style={{ fontWeight: 800, color: isSel ? runner.color : '#ccc', fontSize: '0.85rem' }}>{runner.name}</span>
                                     </div>
                                     <span style={{ fontSize: '0.75rem', fontWeight: 900, color: runner.color }}>x5.0</span>
@@ -586,13 +593,12 @@ const RankedPage: React.FC = () => {
                             transition: 'left 0.1s linear',
                             zIndex: 5
                           }}>
-                            <span style={{
-                              fontSize: '1.8rem',
+                            <img src={runner.image} alt={runner.name} style={{
+                              width: 44, height: 44, borderRadius: '50%', objectFit: 'cover',
+                              border: `2px solid ${runner.color}`,
                               filter: isWinner && racesRoomState.status === 'done' ? 'drop-shadow(0 0 10px #f1c40f)' : 'none',
                               animation: racesRoomState.status === 'racing' ? 'float-up 0.5s infinite alternate' : 'none'
-                            }}>
-                              {runner.emoji}
-                            </span>
+                            }} />
                             <span style={{
                               fontSize: '0.75rem', fontWeight: 700,
                               color: runner.color, background: 'rgba(0,0,0,0.8)',
