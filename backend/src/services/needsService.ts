@@ -1,8 +1,8 @@
 import { prisma } from '../index';
 
 export const NEEDS_DECAY = {
-  ranked: { sleep: 5, hunger: 10, hydration: 15, happiness: 5 },
-  solo: { sleep: 2.5, hunger: 5, hydration: 7.5, happiness: 2.5 },
+  ranked: { sleep: 5, hunger: 7, hydration: 10, happiness: 5 },
+  solo: { sleep: 2.5, hunger: 3.5, hydration: 5, happiness: 2.5 },
 } as const;
 
 type Mode = keyof typeof NEEDS_DECAY;
