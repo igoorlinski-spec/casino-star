@@ -40,6 +40,22 @@ function checkAndSpawn() {
     } else {
       currentVictim = null; // No victim this interval
     }
+
+    if (currentVictim) {
+      const items: any[] = [];
+      items.push({ id: 'remains', name: 'Szczątki i popioły', value: 0, emoji: '⚱️' });
+      items.push({ id: 'trash', name: 'Śmieci (nagroda za sprzątanie)', value: 50, emoji: '🗑️' });
+      if (Math.random() < 0.50) {
+        items.push({ id: 'food', name: 'Obrzydliwe żarcie', value: 3, emoji: '🤢' });
+      }
+      if (Math.random() < 0.20) {
+        items.push({ id: 'dagger', name: 'Sztylet Hindusa', value: 100, emoji: '🗡️' });
+      }
+      if (Math.random() < 0.10) {
+        items.push({ id: 'amulet', name: 'Amulet Hindusa', value: 500, emoji: '🧿' });
+      }
+      currentVictim.items = items;
+    }
   }
 }
 
@@ -137,8 +153,16 @@ router.post('/action', async (req: Request, res: Response): Promise<void> => {
       message += ` 🦠 Ponadto gangeskie wody Cię skaziły! Szeryf przetransportował Cię do szpitala polowego (koszt leczenia: $ 1500 USD).`;
     }
 
+    // Add item rewards
+    const lootValue = currentVictim.items ? currentVictim.items.reduce((sum: number, item: any) => sum + item.value, 0) : 0;
+    const finalDelta = payout - hospitalCost + lootValue;
+
+    if (lootValue > 0) {
+      const itemsList = currentVictim.items.map((it: any) => `${it.emoji} ${it.name} ($${it.value})`).join(', ');
+      message += `\n🎁 Zebrałeś z torów: ${itemsList}. Wartość zebranych rzeczy: $ ${lootValue} USD.`;
+    }
+
     // Apply payout & hospital cost in database
-    const finalDelta = payout - hospitalCost;
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {

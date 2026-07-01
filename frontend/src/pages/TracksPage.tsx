@@ -10,6 +10,16 @@ interface TargetCircle {
   clicked: boolean;
 }
 
+interface LootItem {
+  id: string;
+  name: string;
+  value: number;
+  emoji: string;
+  x: number;
+  y: number;
+  collected: boolean;
+}
+
 const TracksPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [gameState, setGameState] = useState<{
@@ -23,6 +33,13 @@ const TracksPage: React.FC = () => {
   const [claimedVictim, setClaimedVictim] = useState<any>(null);
   const [outcome, setOutcome] = useState<string | null>(null);
   
+  // Animation states
+  const [isAnimatingTrain, setIsAnimatingTrain] = useState(false);
+  const [trainPosition, setTrainPosition] = useState(-150); // percentage or pixels
+  const [showExplosion, setShowExplosion] = useState(false);
+  const [lootItems, setLootItems] = useState<LootItem[]>([]);
+  const [showScatteredItems, setShowScatteredItems] = useState(false);
+
   // CPR Mini-game state
   const [isPlayingCpr, setIsPlayingCpr] = useState(false);
   const [cprCircles, setCprCircles] = useState<TargetCircle[]>([]);
@@ -37,6 +54,8 @@ const TracksPage: React.FC = () => {
       setGameState(res.data);
       if (!res.data.isYours) {
         setClaimedVictim(null);
+        setLootItems([]);
+        setShowScatteredItems(false);
       }
     } catch (err) {
       console.error('Failed to fetch tracks state:', err);
@@ -58,8 +77,51 @@ const TracksPage: React.FC = () => {
     setOutcome(null);
     try {
       const res = await api.post('/tracks/claim');
-      setClaimedVictim(res.data.victim);
-      await fetchState();
+      const victim = res.data.victim;
+      
+      // Start the train crash sequence
+      setIsAnimatingTrain(true);
+      setTrainPosition(-20); // Offscreen left
+      setShowExplosion(false);
+      setLootItems([]);
+      setShowScatteredItems(false);
+
+      // 1. Train moves in
+      setTimeout(() => {
+        setTrainPosition(42); // Reaches the center (where the Hindu is standing)
+      }, 50);
+
+      // 2. Train hits (1.2 seconds later)
+      setTimeout(() => {
+        setShowExplosion(true);
+        sfxLose(); // Play crash sound
+      }, 1250);
+
+      // 3. Explosion ends, items scatter (1.75 seconds later)
+      setTimeout(() => {
+        setShowExplosion(false);
+        setTrainPosition(120); // Train continues offscreen right
+        
+        // Generate random landing coordinates for items
+        if (victim.items) {
+          const items: LootItem[] = victim.items.map((it: any, index: number) => ({
+            ...it,
+            x: 40 + Math.random() * 20 - 10 + (index * 6 - 12), // Spread around the track center
+            y: 40 + Math.random() * 15 - 5,
+            collected: false
+          }));
+          setLootItems(items);
+          setShowScatteredItems(true);
+        }
+      }, 1750);
+
+      // 4. Panel displays choices (2.5 seconds later)
+      setTimeout(() => {
+        setClaimedVictim(victim);
+        setIsAnimatingTrain(false);
+        fetchState();
+      }, 2600);
+
     } catch (err: any) {
       sfxLose();
       alert(err.response?.data?.error || 'Błąd podczas przejmowania ciała.');
@@ -79,6 +141,8 @@ const TracksPage: React.FC = () => {
         setUser({ ...user, dollars: res.data.dollars });
       }
       setClaimedVictim(null);
+      setLootItems([]);
+      setShowScatteredItems(false);
       await fetchState();
     } catch (err: any) {
       sfxLose();
@@ -90,15 +154,14 @@ const TracksPage: React.FC = () => {
 
   const startCprGame = () => {
     sfxClick();
-    // Generate 5 random circles
     const circles: TargetCircle[] = Array.from({ length: 5 }, (_, i) => ({
       id: i,
-      x: 15 + Math.random() * 70, // 15% to 85% width
-      y: 20 + Math.random() * 60, // 20% to 80% height
+      x: 15 + Math.random() * 70,
+      y: 20 + Math.random() * 60,
       clicked: false
     }));
     setCprCircles(circles);
-    setCprTimer(5.5); // 5.5 seconds to click all
+    setCprTimer(5.5);
     setIsPlayingCpr(true);
 
     if (timerRef.current) clearInterval(timerRef.current);
@@ -118,7 +181,6 @@ const TracksPage: React.FC = () => {
     sfxClick();
     setCprCircles((prev) => {
       const updated = prev.map(c => c.id === id ? { ...c, clicked: true } : c);
-      // Check if all clicked
       const allClicked = updated.every(c => c.clicked);
       if (allClicked) {
         clearInterval(timerRef.current!);
@@ -143,6 +205,8 @@ const TracksPage: React.FC = () => {
         setUser({ ...user, dollars: res.data.dollars });
       }
       setClaimedVictim(null);
+      setLootItems([]);
+      setShowScatteredItems(false);
       await fetchState();
     } catch (err: any) {
       sfxLose();
@@ -152,7 +216,6 @@ const TracksPage: React.FC = () => {
     }
   };
 
-  // Convert minutes and seconds from timeLeft
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -182,8 +245,7 @@ const TracksPage: React.FC = () => {
         </h2>
         <p style={{ color: '#dcdde1', maxWidth: 650, margin: '0 auto 15px auto', fontSize: '0.95rem' }}>
           Tory są wspólne dla wszystkich rewolwerowców w okolicy! Co 3 minuty przejeżdża pociąg towarowy, 
-          który czasem potrąca zbłąkanych wędrowców. Ten, kto pierwszy zbada tory i przejmie ciało, 
-          zgarnia nagrodę lub próbuje reanimacji!
+          który potrąca zbłąkanych wędrowców. Złap Hindusa jako pierwszy, zbadaj tory, a wylecą z niego przedmioty!
         </p>
 
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: 'rgba(0,0,0,0.4)', padding: '8px 20px', borderRadius: 30, border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -239,15 +301,35 @@ const TracksPage: React.FC = () => {
             <div style={{ width: '100%', height: 3, background: '#bdc3c7', boxShadow: '0 1px 3px rgba(0,0,0,0.5)', zIndex: 2 }} />
           </div>
 
-          {/* Active Victim on Tracks */}
-          {gameState?.active && gameState.victim && (
+          {/* Animated Train */}
+          {isAnimatingTrain && (
+            <div style={{
+              position: 'absolute', left: `${trainPosition}%`, top: '15%',
+              fontSize: '4.5rem', transition: 'left 1.2s cubic-bezier(0.25, 1, 0.5, 1)', zIndex: 10
+            }}>
+              🚂
+            </div>
+          )}
+
+          {/* Explosion Emoji */}
+          {showExplosion && (
+            <div style={{
+              position: 'absolute', left: '50%', top: '22%', transform: 'translateX(-50%)',
+              fontSize: '5.5rem', zIndex: 15, animation: 'bounce-in 0.2s'
+            }}>
+              💥
+            </div>
+          )}
+
+          {/* Hindu standing (Pre-crash) or flat (Post-crash) */}
+          {(gameState?.active && gameState.victim && !isAnimatingTrain) && (
             <div 
               style={{
                 position: 'absolute', left: '50%', top: '35%', transform: 'translateX(-50%)',
-                textAlign: 'center', zIndex: 5, animation: 'pulse 1.5s infinite'
+                textAlign: 'center', zIndex: 5
               }}
             >
-              <div style={{ fontSize: '3rem', cursor: 'pointer', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
+              <div style={{ fontSize: '3rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
                 👨🏾‍🦱
               </div>
               <div style={{
@@ -255,13 +337,49 @@ const TracksPage: React.FC = () => {
                 borderRadius: 12, border: '1px solid #ff7675', fontWeight: 800, fontSize: '0.8rem',
                 marginTop: 5, whiteSpace: 'nowrap'
               }}>
-                Ranny: {gameState.victim.name}
+                Stoi na torach: {gameState.victim.name}
               </div>
             </div>
           )}
 
+          {/* Showing the hit body during choices */}
+          {claimedVictim && (
+            <div 
+              style={{
+                position: 'absolute', left: '50%', top: '48%', transform: 'translateX(-50%) rotate(90deg)',
+                textAlign: 'center', zIndex: 5
+              }}
+            >
+              <div style={{ fontSize: '3rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
+                💀
+              </div>
+            </div>
+          )}
+
+          {/* Scattered Loot Items */}
+          {showScatteredItems && lootItems.map((item, idx) => (
+            <div
+              key={idx}
+              style={{
+                position: 'absolute', left: `${item.x}%`, top: `${item.y}%`,
+                zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                animation: 'bounce-in 0.5s ease-out'
+              }}
+            >
+              <div style={{ fontSize: '2rem', filter: 'drop-shadow(0 3px 5px rgba(0,0,0,0.6))' }}>
+                {item.emoji}
+              </div>
+              <div style={{
+                background: 'rgba(0,0,0,0.85)', color: 'var(--gold)', border: '1px solid var(--gold)',
+                borderRadius: 6, padding: '1px 5px', fontSize: '0.65rem', fontWeight: 700
+              }}>
+                ${item.value}
+              </div>
+            </div>
+          ))}
+
           {/* No active victim message */}
-          {(!gameState?.active || !gameState.victim) && !claimedVictim && (
+          {(!gameState?.active || !gameState.victim) && !claimedVictim && !isAnimatingTrain && (
             <div style={{
               position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)',
               textAlign: 'center', background: 'rgba(0,0,0,0.6)', padding: '12px 24px',
@@ -330,14 +448,15 @@ const TracksPage: React.FC = () => {
           background: outcome.includes('Sukces') || outcome.includes('Pochowałeś') ? 'rgba(46,204,113,0.15)' : 'rgba(255,71,87,0.15)',
           border: `1px solid ${outcome.includes('Sukces') || outcome.includes('Pochowałeś') ? '#2ecc71' : '#ff4757'}`,
           color: outcome.includes('Sukces') || outcome.includes('Pochowałeś') ? '#2ecc71' : '#ff4757',
-          padding: '16px', borderRadius: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem'
+          padding: '16px', borderRadius: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem',
+          whiteSpace: 'pre-line'
         }}>
           {outcome}
         </div>
       )}
 
-      {/* Interaction block */}
-      {gameState?.active && gameState.victim && !claimedVictim && (
+      {/* Interaction button */}
+      {gameState?.active && gameState.victim && !claimedVictim && !isAnimatingTrain && (
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           <button
             onClick={handleClaim}
@@ -348,12 +467,13 @@ const TracksPage: React.FC = () => {
               boxShadow: '0 0 25px rgba(212,175,55,0.4)', borderRadius: 30
             }}
           >
-            🧨 Zbadaj i przejmij ciało Hindusa!
+            🧨 Zbadaj i przejmij tory!
           </button>
         </div>
       )}
 
-      {claimedVictim && (
+      {/* Choice panel */}
+      {claimedVictim && !isAnimatingTrain && (
         <div className="glass-card" style={{
           padding: '24px', background: 'rgba(25, 12, 5, 0.95)',
           border: '2px solid var(--gold)', borderRadius: 16,
@@ -363,8 +483,8 @@ const TracksPage: React.FC = () => {
             🤠 Przejąłeś ciało: <span style={{ color: '#ff7675' }}>{claimedVictim.name}</span>
           </h3>
           <p style={{ color: '#bdc3c7', fontSize: '0.9rem', textAlign: 'center', margin: 0 }}>
-            Wybierz, co chcesz zrobić z poszkodowanym. Pochowanie jest bezpieczne i szybkie. 
-            Uratowanie wymaga reanimacji (szansa na sukces wynosi 65%), ale nagroda jest wielokrotnie wyższa!
+            Wokół torów leżą porozrzucane rzeczy! Otrzymasz je automatycznie po podjęciu decyzji.
+            Wybierz czy chcesz pochować Hindusa (100% szans), czy ratować (65% szans reanimacji).
           </p>
 
           <div style={{ display: 'flex', gap: 20, marginTop: 10 }}>
