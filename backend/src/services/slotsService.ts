@@ -105,12 +105,12 @@ export function spin(happiness: number = 100): SpinResult {
   //   [minCount, rawChance]
   // Łącznie: 60% bazowo na brak wygranej
   const winTable: { count: number; rawChance: number }[] = [
-    { count: 4, rawChance: 0.20 * happinessMult },  // 4 symbole
-    { count: 5, rawChance: 0.09 * happinessMult },  // 5 symboli
-    { count: 6, rawChance: 0.05 * happinessMult },  // 6 symboli
-    { count: 7, rawChance: 0.03 * happinessMult },  // 7 symboli
-    { count: 8, rawChance: 0.02 * happinessMult },  // 8 symboli
-    { count: 9, rawChance: 0.01 * happinessMult },  // 9 symboli (jackpot)
+    { count: 4, rawChance: 0.13 * happinessMult },  // 4 symbole (zmniejszone z 0.20)
+    { count: 5, rawChance: 0.06 * happinessMult },  // 5 symboli (zmniejszone z 0.09)
+    { count: 6, rawChance: 0.03 * happinessMult },  // 6 symboli (zmniejszone z 0.05)
+    { count: 7, rawChance: 0.02 * happinessMult },  // 7 symboli (zmniejszone z 0.03)
+    { count: 8, rawChance: 0.01 * happinessMult },  // 8 symboli (zmniejszone z 0.02)
+    { count: 9, rawChance: 0.005 * happinessMult }, // 9 symboli (jackpot, zmniejszone z 0.01)
   ];
 
   const roll = Math.random();
