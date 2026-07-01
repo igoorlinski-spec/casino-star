@@ -13,28 +13,28 @@ interface Building {
   desc: string;
 }
 
-export const TownMap: React.FC = () => {
+const TownMap: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   
   // Coordinates in percentage (0 to 100)
-  const [cowboy, setCowboy] = useState({ x: 50, y: 65 });
+  const [avatar, setAvatar] = useState({ x: 50, y: 65 });
   const [target, setTarget] = useState<{ x: number; y: number; path: string } | null>(null);
   
   const houseId = user?.playerHouse?.houseId || 1;
-  const houseEmoji = houseId === 4 ? '🏡' : (houseId === 3 ? '🪵' : (houseId === 2 ? '⛺' : '🏚️'));
-  const houseName = houseId === 4 ? 'Willa' : (houseId === 3 ? 'Mieszkanie' : (houseId === 2 ? 'Kawalerka' : 'Rudera'));
+  const houseEmoji = houseId === 4 ? '🏢' : (houseId === 3 ? '🏨' : (houseId === 2 ? '🏬' : '🏘️'));
+  const houseName = houseId === 4 ? 'Rezydencja Vegas' : (houseId === 3 ? 'Penthouse' : (houseId === 2 ? 'Apartament VIP' : 'Skromny Motel'));
 
   const BUILDINGS = React.useMemo<Building[]>(() => [
-    { id: 'saloon', name: '🍺 Saloon (Kasyno)', emoji: '🎰', color: '#ff9f43', x: 20, y: 20, path: '/game/kasyno', desc: 'Blackjack, Slots, Crash, Races' },
-    { id: 'duel', name: '⚔️ Pojedynki (Online)', emoji: '🤺', color: '#ff3838', x: 50, y: 20, path: '/game/rywalizacja', desc: 'Graj z innymi graczami online' },
-    { id: 'sheriff', name: '⭐ Sheriff (Praca)', emoji: '🤠', color: '#10ac84', x: 80, y: 20, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
-    { id: 'cabaret', name: '💃 Kabaret (Rozrywka)', emoji: '🔞', color: '#ff00e6', x: 20, y: 50, path: '/game/rozrywka', desc: 'Randki, Strip Club, Kino' },
-    { id: 'home', name: `🏠 Twój Dom (${houseName})`, emoji: houseEmoji, color: '#ee5253', x: 50, y: 50, path: '/game/dom', desc: 'Odpocznij i zregeneruj siły' },
-    { id: 'tracks', name: '🛤️ Tory Kolejowe (Wypadki)', emoji: '🚂', color: '#e67e22', x: 80, y: 50, path: '/game/tory', desc: 'Przejmij rannych Hindusów' },
-    { id: 'store', name: '🛒 General Store (Sklep)', emoji: '📦', color: '#2e86de', x: 20, y: 80, path: '/game/sklep', desc: 'Jedzenie, picie, plecak' },
-    { id: 'wanted', name: '📜 Listy Gończe (Ranking)', emoji: '🏅', color: '#ffd700', x: 50, y: 80, path: '/game/ranking', desc: 'Najlepsi rewolwerowcy w mieście' },
-    { id: 'bank', name: '🏛️ Bank & Biznes', emoji: '📈', color: '#00d2d3', x: 80, y: 80, path: '/game/biznes', desc: 'Giełda, inwestycje, rankingi' },
+    { id: 'saloon', name: '🎰 Casino Bellagio', emoji: '🎲', color: '#00f0ff', x: 20, y: 20, path: '/game/kasyno', desc: 'Blackjack, Slots, Crash, Races' },
+    { id: 'duel', name: '⚡ High Roller Arena', emoji: '🏆', color: '#ff007f', x: 50, y: 20, path: '/game/rywalizacja', desc: 'Graj z innymi graczami online' },
+    { id: 'sheriff', name: '👮 Security Patrol', emoji: '🚨', color: '#39ff14', x: 80, y: 20, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
+    { id: 'cabaret', name: '🔞 Vegas Nightclub', emoji: '💃', color: '#ff00aa', x: 20, y: 50, path: '/game/rozrywka', desc: 'Randki, Strip Club, Kino' },
+    { id: 'home', name: `🏨 Twój Apartament (${houseName})`, emoji: houseEmoji, color: '#ffd700', x: 50, y: 50, path: '/game/dom', desc: 'Odpocznij i zregeneruj siły' },
+    { id: 'tracks', name: '🚇 Vegas Monorail', emoji: '🚝', color: '#ff5e00', x: 80, y: 50, path: '/game/tory', desc: 'Przejmij rannych na torach metra' },
+    { id: 'store', name: '🛍️ Fashion Mall (Sklep)', emoji: '👜', color: '#a29bfe', x: 20, y: 80, path: '/game/sklep', desc: 'Jedzenie, picie, plecak' },
+    { id: 'wanted', name: '📜 Hall of Fame (Ranking)', emoji: '🏅', color: '#00d2d3', x: 50, y: 80, path: '/game/ranking', desc: 'Najlepsi gracze w Vegas' },
+    { id: 'bank', name: '🏛️ Bank & Biznes', emoji: '💼', color: '#1dd1a1', x: 80, y: 80, path: '/game/biznes', desc: 'Giełda, inwestycje, rankingi' },
   ], [houseEmoji, houseName]);
 
   // Click-to-walk mouse simulation
@@ -42,7 +42,7 @@ export const TownMap: React.FC = () => {
     if (!target) return;
 
     const interval = setInterval(() => {
-      setCowboy((prev) => {
+      setAvatar((prev) => {
         const dx = target.x - prev.x;
         const dy = target.y - prev.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -54,10 +54,10 @@ export const TownMap: React.FC = () => {
           return { x: target.x, y: target.y };
         }
 
-        const step = 2.5; // speed
+        const speed = 2.5; // speed
         return {
-          x: prev.x + (dx / dist) * step,
-          y: prev.y + (dy / dist) * step,
+          x: prev.x + (dx / dist) * speed,
+          y: prev.y + (dy / dist) * speed,
         };
       });
     }, 30);
@@ -65,22 +65,27 @@ export const TownMap: React.FC = () => {
     return () => clearInterval(interval);
   }, [target, navigate]);
 
-  // Keyboard WASD/Arrow keys walking
+  // Keyboard navigation (WASD & Arrows)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
+      // Ignore key events if the user is typing in an input
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+
       let dx = 0;
       let dy = 0;
-      const step = 3; // percentage shift per press
+      const step = 3;
 
-      if (key === 'w' || key === 'arrowup') dy = -step;
-      else if (key === 's' || key === 'arrowdown') dy = step;
-      else if (key === 'a' || key === 'arrowleft') dx = -step;
-      else if (key === 'd' || key === 'arrowright') dx = step;
+      if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') dy = -step;
+      else if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') dy = step;
+      else if (e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') dx = -step;
+      else if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') dx = step;
 
       if (dx !== 0 || dy !== 0) {
+        e.preventDefault();
         setTarget(null); // Cancel mouse target
-        setCowboy((prev) => {
+        setAvatar((prev) => {
           const nextX = Math.max(5, Math.min(95, prev.x + dx));
           const nextY = Math.max(5, Math.min(95, prev.y + dy));
 
@@ -100,7 +105,7 @@ export const TownMap: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, BUILDINGS]);
+  }, [BUILDINGS, navigate]);
 
   const handleBuildingClick = (b: Building) => {
     setTarget({ x: b.x, y: b.y, path: b.path });
@@ -109,26 +114,26 @@ export const TownMap: React.FC = () => {
   return (
     <div style={{
       position: 'relative', width: '100%', height: '500px',
-      background: 'radial-gradient(circle, #e2b474 20%, #c49454 100%)',
-      borderRadius: '24px', border: '5px solid #5c3a21',
-      boxShadow: '0 15px 35px rgba(0,0,0,0.5), inset 0 0 50px rgba(0,0,0,0.3)',
+      background: 'radial-gradient(circle, #100624 20%, #03010b 100%)',
+      borderRadius: '24px', border: '5px solid #00f0ff',
+      boxShadow: '0 15px 40px rgba(0,240,255,0.25), inset 0 0 80px rgba(0,0,0,0.9)',
       overflow: 'hidden',
       fontFamily: 'var(--font-body)',
       marginBottom: '20px'
     }}>
-      {/* Decorative Desert Items */}
-      <span style={{ position: 'absolute', left: '10%', top: '45%', fontSize: '2rem', opacity: 0.35 }}>🌵</span>
-      <span style={{ position: 'absolute', right: '12%', top: '48%', fontSize: '2.2rem', opacity: 0.35 }}>🌵</span>
-      <span style={{ position: 'absolute', left: '45%', top: '15%', fontSize: '1.8rem', opacity: 0.25 }}>🪨</span>
-      <span style={{ position: 'absolute', right: '40%', top: '78%', fontSize: '2rem', opacity: 0.2 }}>🌾</span>
+      {/* Decorative Las Vegas Items */}
+      <span style={{ position: 'absolute', left: '10%', top: '45%', fontSize: '2.5rem', opacity: 0.45, animation: 'float-up 8s infinite linear' }}>🌴</span>
+      <span style={{ position: 'absolute', right: '12%', top: '48%', fontSize: '2.5rem', opacity: 0.45 }}>🌴</span>
+      <span style={{ position: 'absolute', left: '45%', top: '15%', fontSize: '2rem', opacity: 0.4, animation: 'neon-flicker 3s infinite' }}>✨</span>
+      <span style={{ position: 'absolute', right: '40%', top: '78%', fontSize: '2.2rem', opacity: 0.35 }}>🏎️</span>
 
-      {/* Grid Paths */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: '20%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, top: '80%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
-      <div style={{ position: 'absolute', left: '20%', top: 0, bottom: 0, width: '8px', background: 'rgba(0,0,0,0.1)' }} />
-      <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '8px', background: 'rgba(0,0,0,0.1)' }} />
-      <div style={{ position: 'absolute', left: '80%', top: 0, bottom: 0, width: '8px', background: 'rgba(0,0,0,0.1)' }} />
+      {/* Glowing Neon Grid Roads */}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: '20%', height: '8px', background: 'rgba(0, 240, 255, 0.25)', boxShadow: '0 0 10px rgba(0,240,255,0.5)' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: '8px', background: 'rgba(0, 240, 255, 0.25)', boxShadow: '0 0 10px rgba(0,240,255,0.5)' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: '80%', height: '8px', background: 'rgba(0, 240, 255, 0.25)', boxShadow: '0 0 10px rgba(0,240,255,0.5)' }} />
+      <div style={{ position: 'absolute', left: '20%', top: 0, bottom: 0, width: '8px', background: 'rgba(0, 240, 255, 0.25)', boxShadow: '0 0 10px rgba(0,240,255,0.5)' }} />
+      <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '8px', background: 'rgba(0, 240, 255, 0.25)', boxShadow: '0 0 10px rgba(0,240,255,0.5)' }} />
+      <div style={{ position: 'absolute', left: '80%', top: 0, bottom: 0, width: '8px', background: 'rgba(0, 240, 255, 0.25)', boxShadow: '0 0 10px rgba(0,240,255,0.5)' }} />
 
       {/* Buildings */}
       {BUILDINGS.map((b) => (
@@ -144,59 +149,59 @@ export const TownMap: React.FC = () => {
           }}
         >
           <div style={{
-            width: '64px', height: '64px', borderRadius: '16px',
-            background: 'linear-gradient(135deg, #8b5a2b, #5c3a21)',
+            width: '64px', height: '64px', borderRadius: '20px',
+            background: 'linear-gradient(135deg, #1b0c36, #070314)',
             border: `3px solid ${b.color}`,
-            boxShadow: '0 8px 16px rgba(0,0,0,0.4)',
+            boxShadow: `0 8px 20px rgba(0,0,0,0.6), 0 0 12px ${b.color}aa`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '2rem',
-            transition: 'transform 0.15s',
+            fontSize: '2.2rem',
+            transition: 'transform 0.15s, box-shadow 0.15s',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+            e.currentTarget.style.boxShadow = `0 12px 25px rgba(0,0,0,0.8), 0 0 20px ${b.color}`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = `0 8px 20px rgba(0,0,0,0.6), 0 0 12px ${b.color}aa`;
+          }}
           >
             {b.emoji}
           </div>
           <span style={{
-            marginTop: '8px', background: 'rgba(0,0,0,0.85)', color: '#f5eedc',
-            fontSize: '0.8rem', fontWeight: 'bold', padding: '3px 8px',
-            borderRadius: '6px', border: '1px solid rgba(229,177,60,0.4)',
+            marginTop: '8px', background: 'rgba(5, 2, 12, 0.9)', color: '#ffffff',
+            fontSize: '0.8rem', fontWeight: '800', padding: '3px 10px',
+            borderRadius: '15px', border: `1px solid ${b.color}`,
             whiteSpace: 'nowrap',
+            boxShadow: `0 4px 10px rgba(0,0,0,0.5), 0 0 5px ${b.color}55`
           }}>
             {b.name}
           </span>
         </button>
       ))}
 
-      {/* Cowboy Avatar */}
+      {/* VIP Avatar (Gentleman in Tuxedo) */}
       <div style={{
-        position: 'absolute', left: `${cowboy.x}%`, top: `${cowboy.y}%`,
+        position: 'absolute', left: `${avatar.x}%`, top: `${avatar.y}%`,
         transform: 'translate(-50%, -50%)',
-        fontSize: '2.5rem',
+        fontSize: '2.8rem',
         zIndex: 20,
-        filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))',
+        filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.8))',
         transition: 'transform(all) 0.05s',
         animation: target ? 'walk-bob 0.25s infinite alternate' : 'none',
       }}>
-        🤠
+        🤵
       </div>
 
-      {/* Bottom Tip Bar */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0,
-        background: 'rgba(28, 14, 7, 0.95)', borderTop: '2px solid #5c3a21',
-        padding: '10px 20px', textAlign: 'center', fontSize: '0.85rem', color: '#c5b497'
-      }}>
-        Użyj klawiszy WASD / Strzałek do chodzenia, lub kliknij budynek, aby kowboj podszedł sam.
-      </div>
-
+      {/* CSS Animation for walking bobbing */}
       <style>{`
         @keyframes walk-bob {
-          0% { transform: translate(-50%, -55%) rotate(-5deg); }
-          100% { transform: translate(-50%, -45%) rotate(5deg); }
+          0% { transform: translate(-50%, -50%) translateY(0) scaleX(1); }
+          100% { transform: translate(-50%, -50%) translateY(-6px) scaleX(0.95); }
         }
       `}</style>
     </div>
   );
 };
+
 export default TownMap;
