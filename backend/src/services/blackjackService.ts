@@ -230,9 +230,9 @@ export interface GameSession {
 
 function resolveGame(session: GameSession): { outcome: GameOutcome; payout: number } {
   const playerValue = getHandValue(session.playerHand);
-  const dealerValue = getHandValue(session.dealerHand);
+  let dealerValue = getHandValue(session.dealerHand);
   const playerBJ = isBlackjack(session.playerHand);
-  const dealerBJ = isBlackjack(session.dealerHand);
+  let dealerBJ = isBlackjack(session.dealerHand);
 
   // Sprawdź czy nakładamy karę złego stanu psychicznego (zadowolenie <= 20)
   const happiness = session.happiness ?? 100;
@@ -248,8 +248,28 @@ function resolveGame(session: GameSession): { outcome: GameOutcome; payout: numb
   if (forceLoss) {
     const isPlayerWinning = (playerValue <= 21 && (dealerValue > 21 || playerValue > dealerValue)) || playerBJ;
     if (isPlayerWinning) {
-      // Dajemy dealerowi układ wygrywający (np. 21) lub symulujemy przegraną gracza
-      return { outcome: 'loss', payout: 0 };
+      // Force dealer to beat player visually
+      const targetScore = Math.min(21, playerValue + 1);
+      if (targetScore === 21) {
+        session.dealerHand = [
+          { rank: '10', suit: 'hearts' },
+          { rank: 'A', suit: 'spades' }
+        ];
+      } else if (targetScore === 20) {
+        session.dealerHand = [
+          { rank: '10', suit: 'hearts' },
+          { rank: '10', suit: 'spades' }
+        ];
+      } else {
+        const secondRank = (targetScore - 10).toString() as Rank;
+        session.dealerHand = [
+          { rank: '10', suit: 'hearts' },
+          { rank: secondRank, suit: 'spades' }
+        ];
+      }
+      // Re-evaluate values
+      dealerValue = getHandValue(session.dealerHand);
+      dealerBJ = isBlackjack(session.dealerHand);
     }
   }
 
