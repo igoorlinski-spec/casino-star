@@ -714,9 +714,11 @@ const ChickenGame: React.FC<{
               onClick={startChickenGame}
               disabled={loading || depleted || !user || user.tokens < bet}
               className="btn-gold"
-              style={{ padding: '12px 40px', fontSize: '1.05rem', borderRadius: 30 }}
+              style={{ padding: '12px 40px', fontSize: '1.05rem', borderRadius: 30, opacity: (loading || depleted || !user || user.tokens < bet) ? 0.5 : 1 }}
             >
-              🚀 POSTAW BET
+              {depleted 
+                ? '⚠️ ZADBAJ O POTRZEBY!' 
+                : (user && user.tokens < bet ? '⚠️ BRAK ŻETONÓW' : '🚀 POSTAW BET')}
             </button>
           ) : (
             <div style={{ display: 'flex', gap: 12 }}>
