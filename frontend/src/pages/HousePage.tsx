@@ -14,9 +14,10 @@ interface House {
 }
 
 export const HousePage: React.FC = () => {
-  const { updateNeeds } = useAuthStore();
+  const { user, setUser, updateNeeds } = useAuthStore();
   const [currentHouse, setCurrentHouse] = useState<House | null>(null);
   const [inventory, setInventory] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -28,6 +29,10 @@ export const HousePage: React.FC = () => {
       const houseId = meRes.data.user.playerHouse?.houseId || 1;
       const found = housesRes.data.houses.find((h: House) => h.id === houseId);
       setCurrentHouse(found || null);
+
+      // Fetch other players for robbery list
+      const lbRes = await api.get('/leaderboard');
+      setPlayers(lbRes.data.leaderboard || []);
     } catch (err) {
       console.error(err);
     }
@@ -87,6 +92,21 @@ export const HousePage: React.FC = () => {
     } catch (err: any) {
       sfxError();
       alert(err.response?.data?.error || 'Błąd.');
+    }
+  };
+
+  const robPlayer = async (targetNickname: string) => {
+    if (!window.confirm(`Czy na pewno chcesz napaść na dom gracza ${targetNickname}? Masz 10% szans na sukces. Porażka kosztuje $1000 kary.`)) return;
+    try {
+      const res = await api.post('/house/rob', { targetNickname });
+      alert(res.data.message);
+      if (user) {
+        setUser({ ...user, dollars: res.data.dollars });
+      }
+      fetchData();
+    } catch (err: any) {
+      sfxError();
+      alert(err.response?.data?.error || 'Napad się nie udał.');
     }
   };
 
@@ -191,6 +211,45 @@ export const HousePage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Napady na sąsiadów */}
+      <div className="glass-card" style={{ padding: '24px' }}>
+        <h3 style={{ color: 'var(--gold)', marginBottom: '12px', fontFamily: 'var(--font-display)', fontSize: '1.2rem' }}>
+          🤠 Napady na sąsiadów (10% szans)
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
+          Zrób wjazd na chatę innego rewolwerowca. Sukces daje procent z jego gotówki. Porażka kosztuje grzywnę <strong style={{ color: '#ff7675' }}>$ 1000.00 USD</strong>.
+        </p>
+        
+        {players.filter(p => p.nickname !== user?.nickname).length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Brak innych graczy w miasteczku...</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {players.filter(p => p.nickname !== user?.nickname).map((p: any) => (
+              <div key={p.nickname} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 'bold' }}>{p.nickname}</span>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Dom: {p.houseName}</span>
+                </div>
+                <button 
+                  className="btn-ghost btn-sm" 
+                  style={{ 
+                    borderColor: '#c0392b', 
+                    color: '#ff7675', 
+                    padding: '5px 12px', 
+                    fontSize: '0.8rem', 
+                    background: 'rgba(192, 57, 43, 0.15)',
+                    cursor: 'pointer'
+                  }} 
+                  onClick={() => robPlayer(p.nickname)}
+                >
+                  Napadnij 🧨
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
