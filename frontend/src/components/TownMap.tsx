@@ -18,7 +18,7 @@ export const TownMap: React.FC = () => {
   const { user } = useAuthStore();
   
   // Coordinates in percentage (0 to 100)
-  const [cowboy, setCowboy] = useState({ x: 50, y: 80 });
+  const [cowboy, setCowboy] = useState({ x: 50, y: 65 });
   const [target, setTarget] = useState<{ x: number; y: number; path: string } | null>(null);
   
   const houseId = user?.playerHouse?.houseId || 1;
@@ -26,11 +26,13 @@ export const TownMap: React.FC = () => {
   const houseName = houseId === 4 ? 'Willa' : (houseId === 3 ? 'Mieszkanie' : (houseId === 2 ? 'Kawalerka' : 'Rudera'));
 
   const BUILDINGS = React.useMemo<Building[]>(() => [
-    { id: 'saloon', name: '🍺 Saloon (Kasyno)', emoji: '🎰', color: '#ff9f43', x: 20, y: 25, path: '/game/kasyno', desc: 'Blackjack, Slots, Crash, Races' },
-    { id: 'sheriff', name: '⭐ Sheriff (Praca)', emoji: '🤠', color: '#10ac84', x: 80, y: 25, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
+    { id: 'saloon', name: '🍺 Saloon (Kasyno)', emoji: '🎰', color: '#ff9f43', x: 20, y: 20, path: '/game/kasyno', desc: 'Blackjack, Slots, Crash, Races' },
+    { id: 'duel', name: '⚔️ Pojedynki (Online)', emoji: '🤺', color: '#ff3838', x: 50, y: 20, path: '/game/rywalizacja', desc: 'Graj z innymi graczami online' },
+    { id: 'sheriff', name: '⭐ Sheriff (Praca)', emoji: '🤠', color: '#10ac84', x: 80, y: 20, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
     { id: 'home', name: `🏠 Twój Dom (${houseName})`, emoji: houseEmoji, color: '#ee5253', x: 50, y: 50, path: '/game/dom', desc: 'Odpocznij i zregeneruj siły' },
-    { id: 'store', name: '🛒 General Store (Sklep)', emoji: '📦', color: '#2e86de', x: 20, y: 75, path: '/game/sklep', desc: 'Jedzenie, picie, plecak' },
-    { id: 'bank', name: '🏛️ Bank & Biznes', emoji: '📈', color: '#00d2d3', x: 80, y: 75, path: '/game/biznes', desc: 'Giełda, inwestycje, rankingi' },
+    { id: 'store', name: '🛒 General Store (Sklep)', emoji: '📦', color: '#2e86de', x: 20, y: 80, path: '/game/sklep', desc: 'Jedzenie, picie, plecak' },
+    { id: 'wanted', name: '📜 Listy Gończe (Ranking)', emoji: '🏅', color: '#ffd700', x: 50, y: 80, path: '/game/ranking', desc: 'Najlepsi rewolwerowcy w mieście' },
+    { id: 'bank', name: '🏛️ Bank & Biznes', emoji: '📈', color: '#00d2d3', x: 80, y: 80, path: '/game/biznes', desc: 'Giełda, inwestycje, rankingi' },
   ], [houseEmoji, houseName]);
 
   // Click-to-walk mouse simulation
@@ -119,9 +121,10 @@ export const TownMap: React.FC = () => {
       <span style={{ position: 'absolute', right: '40%', top: '78%', fontSize: '2rem', opacity: 0.2 }}>🌾</span>
 
       {/* Grid Paths */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: '25%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
-      <div style={{ position: 'absolute', left: 0, right: 0, top: '75%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: '20%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: '80%', height: '8px', background: 'rgba(0,0,0,0.1)' }} />
       <div style={{ position: 'absolute', left: '20%', top: 0, bottom: 0, width: '8px', background: 'rgba(0,0,0,0.1)' }} />
+      <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '8px', background: 'rgba(0,0,0,0.1)' }} />
       <div style={{ position: 'absolute', left: '80%', top: 0, bottom: 0, width: '8px', background: 'rgba(0,0,0,0.1)' }} />
 
       {/* Buildings */}
