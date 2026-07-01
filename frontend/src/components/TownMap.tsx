@@ -31,7 +31,6 @@ export const TownMap: React.FC = () => {
     { id: 'sheriff', name: '⭐ Sheriff (Praca)', emoji: '🤠', color: '#10ac84', x: 80, y: 20, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
     { id: 'cabaret', name: '💃 Kabaret (Rozrywka)', emoji: '🔞', color: '#ff00e6', x: 20, y: 50, path: '/game/rozrywka', desc: 'Randki, Strip Club, Kino' },
     { id: 'home', name: `🏠 Twój Dom (${houseName})`, emoji: houseEmoji, color: '#ee5253', x: 50, y: 50, path: '/game/dom', desc: 'Odpocznij i zregeneruj siły' },
-    { id: 'plock', name: '🇵🇱 Event Płock', emoji: '🇵🇱', color: '#ff7675', x: 80, y: 50, path: '/game/plock', desc: 'Maszyna Płock i mafia' },
     { id: 'store', name: '🛒 General Store (Sklep)', emoji: '📦', color: '#2e86de', x: 20, y: 80, path: '/game/sklep', desc: 'Jedzenie, picie, plecak' },
     { id: 'wanted', name: '📜 Listy Gończe (Ranking)', emoji: '🏅', color: '#ffd700', x: 50, y: 80, path: '/game/ranking', desc: 'Najlepsi rewolwerowcy w mieście' },
     { id: 'bank', name: '🏛️ Bank & Biznes', emoji: '📈', color: '#00d2d3', x: 80, y: 80, path: '/game/biznes', desc: 'Giełda, inwestycje, rankingi' },
