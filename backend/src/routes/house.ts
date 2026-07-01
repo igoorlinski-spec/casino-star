@@ -42,6 +42,9 @@ router.post('/sleep', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+const robCooldowns = new Map<string, number>();
+const COOLDOWN_MS = 30 * 60 * 1000; // 30 minut
+
 // POST /api/house/rob
 router.post('/rob', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -50,6 +53,15 @@ router.post('/rob', async (req: Request, res: Response): Promise<void> => {
 
     if (!targetNickname) {
       res.status(400).json({ error: 'Nazwa gracza do napadu jest wymagana' });
+      return;
+    }
+
+    const now = Date.now();
+    const lastRobTime = robCooldowns.get(userId);
+    if (lastRobTime && now - lastRobTime < COOLDOWN_MS) {
+      const remainingMs = COOLDOWN_MS - (now - lastRobTime);
+      const remainingMin = Math.ceil(remainingMs / 60000);
+      res.status(429).json({ error: `🚨 Jesteś poszukiwany listem gończym! Odczekaj jeszcze ${remainingMin} min przed kolejnym napadem.` });
       return;
     }
 
@@ -72,6 +84,9 @@ router.post('/rob', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Nie możesz napaść na własny dom!' });
       return;
     }
+
+    // Set cooldown timestamp
+    robCooldowns.set(userId, now);
 
     // Roll the heist (10% success chance)
     const success = Math.random() < 0.10;
