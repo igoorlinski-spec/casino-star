@@ -12,6 +12,7 @@ import leaderboardRouter from './routes/leaderboard';
 import gameRouter from './routes/game';
 import businessRouter from './routes/business';
 import stocksRouter from './routes/stocks';
+import houseRouter from './routes/house';
 import { setupMatchmaking } from './sockets/matchmaking';
 import { seedStocks, startStockTicker } from './services/stockService';
 
@@ -55,6 +56,7 @@ app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/game', gameRouter);
 app.use('/api/business', businessRouter);
 app.use('/api/stocks', stocksRouter);
+app.use('/api/house', houseRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

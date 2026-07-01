@@ -122,9 +122,11 @@ const ShopPage: React.FC = () => {
   const goSleep = async () => {
     try {
       sfxSleep();
-      const res = await api.post('/shop/sleep');
+      const res = await api.post('/house/sleep');
       updateNeeds(res.data.needs);
-    } catch (err) { sfxError(); console.error(err); }
+      alert(res.data.message);
+      fetchData();
+    } catch (err: any) { sfxError(); alert(err.response?.data?.error || 'Nie udało się położyć spać.'); console.error(err); }
   };
 
   const drinkTap = async () => {

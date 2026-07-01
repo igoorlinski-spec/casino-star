@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Rye&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
 /* ===========================
    CSS RESET
@@ -13,24 +13,24 @@
    CSS CUSTOM PROPERTIES
    =========================== */
 :root {
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #111118;
-  --bg-card: #1a1a2e;
-  --gold: #d4af37;
-  --gold-light: #f5c842;
-  --red-dark: #8b0000;
+  --bg-primary: #1c0e07;
+  --bg-secondary: #2b170c;
+  --bg-card: #3d2516;
+  --gold: #e5b13c;
+  --gold-light: #fcd56b;
+  --red-dark: #6e1610;
   --red: #c0392b;
-  --text-primary: #f0e6d3;
-  --text-secondary: #a89070;
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --border-gold: rgba(212, 175, 55, 0.2);
-  --border-gold-strong: rgba(212, 175, 55, 0.6);
-  --green-dark: #1a4a2e;
-  --green: #2d7a4f;
-  --shadow-gold: 0 0 25px rgba(212, 175, 55, 0.6), inset 0 0 15px rgba(212, 175, 55, 0.3);
-  --shadow-red: 0 0 25px rgba(139, 0, 0, 0.7);
-  --font-display: 'Outfit', 'Playfair Display', serif;
-  --font-body: 'Outfit', 'Inter', sans-serif;
+  --text-primary: #f5eedc;
+  --text-secondary: #c5b497;
+  --glass-bg: rgba(92, 58, 33, 0.25);
+  --border-gold: rgba(229, 177, 60, 0.35);
+  --border-gold-strong: rgba(229, 177, 60, 0.7);
+  --green-dark: #224d27;
+  --green: #2ecc71;
+  --shadow-gold: 0 0 25px rgba(229, 177, 60, 0.5), inset 0 0 15px rgba(229, 177, 60, 0.2);
+  --shadow-red: 0 0 25px rgba(110, 22, 16, 0.7);
+  --font-display: 'Rye', 'Playfair Display', serif;
+  --font-body: 'Playfair Display', 'Inter', serif;
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
@@ -59,16 +59,16 @@
    =========================== */
 body {
   font-family: var(--font-body);
-  background: linear-gradient(135deg, #09090e, #140505, #0f0516, #09090e);
+  background: linear-gradient(135deg, #1c0e07, #2d160a, #381f12, #1c0e07);
   background-size: 400% 400%;
-  animation: vegas-bg-shift 20s ease infinite;
+  animation: western-bg-shift 20s ease infinite;
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.6;
 }
 
-@keyframes vegas-bg-shift {
+@keyframes western-bg-shift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }

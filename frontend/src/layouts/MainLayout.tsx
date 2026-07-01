@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import NeedsBar from '../components/NeedsBar';
 import api from '../api/api';
 import { Howl } from 'howler';
 import { sfxClick } from '../utils/sfx';
+import TownMap from '../components/TownMap';
 
 // Inicjalizacja muzyki tła
 const bgMusic = new Howl({
@@ -17,7 +18,6 @@ const bgMusic = new Howl({
 const MainLayout: React.FC = () => {
   const { user, needs, logout, updateNeeds, setUser } = useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation();
   const [playingMusic, setPlayingMusic] = useState(false);
   const [bagInventory, setBagInventory] = useState<any[]>([]);
   const [showQuests, setShowQuests] = useState(false);
@@ -43,7 +43,7 @@ const MainLayout: React.FC = () => {
     }
   }, [user, navigate]);
 
-  const activeTab = location.pathname.split('/').pop() || 'kasyno';
+
 
   const handleLogout = () => {
     bgMusic.stop();
@@ -348,49 +348,10 @@ const MainLayout: React.FC = () => {
           </aside>
         )}
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Navigation tabs */}
-          <nav className="nav-tabs" style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
-            <button className={`nav-tab ${activeTab === 'kasyno' ? 'active' : ''}`} onClick={() => navigate('/game/kasyno')}>Kasyno 🎦</button>
-            <button className={`nav-tab ${activeTab === 'rywalizacja' ? 'active' : ''}`} onClick={() => navigate('/game/rywalizacja')}>Rywalizacja 🏆</button>
-            <button className={`nav-tab ${activeTab === 'rozrywka' ? 'active' : ''}`} onClick={() => navigate('/game/rozrywka')}>Rozrywka 🔞</button>
-            <button className={`nav-tab ${activeTab === 'sklep' ? 'active' : ''}`} onClick={() => navigate('/game/sklep')}>Sklep 🛝</button>
-            <button className={`nav-tab ${activeTab === 'praca' ? 'active' : ''}`} onClick={() => navigate('/game/praca')}>Praca 💼</button>
-            <button className={`nav-tab ${activeTab === 'biznes' ? 'active' : ''}`} onClick={() => navigate('/game/biznes')}>Biznes 🏢</button>
-            <button
-              className={`nav-tab ${activeTab === 'gielda' ? 'active' : ''}`}
-              onClick={() => navigate('/game/gielda')}
-              style={{
-                borderBottomColor: activeTab === 'gielda' ? '#3498db' : 'transparent',
-                color: activeTab === 'gielda' ? '#3498db' : '#7fb3d3',
-              }}
-            >
-              📈 Giełda
-            </button>
-            <button 
-              className={`nav-tab ${activeTab === 'plock' ? 'active' : ''}`} 
-              onClick={() => navigate('/game/plock')} 
-              style={{ 
-                borderBottomColor: activeTab === 'plock' ? '#e74c3c' : '#e74c3c',
-                color: activeTab === 'plock' ? '#fff' : '#ff7675',
-                fontSize: '1.1rem', 
-                fontWeight: '900',
-                textShadow: '0 0 8px #ff2e63',
-                border: '1.5px solid #ff2e63',
-                borderRadius: '8px',
-                padding: '4px 12px',
-                background: activeTab === 'plock' ? 'rgba(231, 76, 60, 0.25)' : 'rgba(231, 76, 60, 0.1)',
-                boxShadow: '0 0 10px rgba(231, 76, 60, 0.4)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              🇵🇱 EVENT PŁOCK 🇵🇱
-            </button>
-            <button className={`nav-tab ${activeTab === 'ranking' ? 'active' : ''}`} onClick={() => navigate('/game/ranking')}>Ranking 🏅</button>
-          </nav>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '16px' }}>
+          <TownMap />
 
-          <main className="page-content" style={{ padding: '20px', flex: 1 }}>
+          <main className="page-content" style={{ padding: '20px 0', flex: 1 }}>
             <Outlet context={{ refreshBag: fetchBag }} />
           </main>
         </div>
