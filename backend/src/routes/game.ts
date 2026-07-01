@@ -748,4 +748,173 @@ router.post('/crash/cashout', async (req: Request, res: Response): Promise<void>
   }
 });
 
+// ────────────────────────────────────────────────────────────────────────────
+// CHICKEN ROAD GAME
+// ────────────────────────────────────────────────────────────────────────────
+interface ChickenSession {
+  bet: number;
+  crashMultiplier: number;
+  currentStep: number; // 0 to 9
+  active: boolean;
+}
+
+const chickenSessions = new Map<string, ChickenSession>();
+const CHICKEN_MULTIPLIERS = [1.25, 1.43, 1.66, 1.94, 2.28, 2.71, 3.25, 3.94, 4.85, 6.00];
+
+// POST /api/game/chicken/start
+router.post('/chicken/start', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const { bet } = req.body;
+
+    if (!bet || typeof bet !== 'number' || bet <= 0) {
+      res.status(400).json({ error: 'Nieprawidłowa stawka' });
+      return;
+    }
+
+    const updated = await prisma.user.updateMany({
+      where: { id: userId, tokens: { gte: bet } },
+      data: { tokens: { decrement: bet } }
+    });
+
+    if (updated.count === 0) {
+      res.status(400).json({ error: 'Niewystarczająca liczba żetonów' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'Użytkownik nie znaleziony' });
+      return;
+    }
+
+    // Roll crash multiplier using same Crash probabilities
+    const roll = Math.random();
+    let crashMultiplier = 1.00;
+    if (roll < 0.60) {
+      crashMultiplier = parseFloat((1.00 + Math.random() * 1.00).toFixed(2));
+    } else if (roll < 0.95) {
+      crashMultiplier = parseFloat((2.00 + Math.random() * 1.00).toFixed(2));
+    } else if (roll < 0.995) {
+      crashMultiplier = parseFloat((3.00 + Math.random() * 2.00).toFixed(2));
+    } else {
+      crashMultiplier = parseFloat((5.00 + Math.random() * 10.00).toFixed(2));
+    }
+
+    chickenSessions.set(userId, {
+      bet,
+      crashMultiplier,
+      currentStep: -1, // Not started steps yet
+      active: true
+    });
+
+    res.json({
+      success: true,
+      tokens: user.tokens
+    });
+  } catch (err) {
+    console.error('Chicken start error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
+// POST /api/game/chicken/step
+router.post('/chicken/step', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const session = chickenSessions.get(userId);
+
+    if (!session || !session.active) {
+      res.status(400).json({ error: 'Brak aktywnej sesji gry Kurczak' });
+      return;
+    }
+
+    session.currentStep += 1;
+    const nextMult = CHICKEN_MULTIPLIERS[session.currentStep];
+
+    if (nextMult > session.crashMultiplier) {
+      // CRASH! Potrącony przez monorail / barykadę
+      session.active = false;
+      chickenSessions.delete(userId);
+
+      const needs = await applyNeedsDecay(userId, 'solo');
+      await prisma.playerStats.update({
+        where: { userId },
+        data: { gamesPlayed: { increment: 1 } }
+      });
+      await prisma.matchHistory.create({
+        data: { player1Id: userId, gameType: 'chicken_road', tokensDelta: -session.bet }
+      });
+
+      res.json({
+        success: true,
+        crashed: true,
+        crashMultiplier: session.crashMultiplier,
+        needs,
+        message: `💥 Ooo nie! Kurczak został rozjechany przy próbie przejścia na mnożnik ${nextMult}x (limit wynosił ${session.crashMultiplier}x).`
+      });
+    } else {
+      // Safe step
+      res.json({
+        success: true,
+        crashed: false,
+        step: session.currentStep,
+        multiplier: nextMult
+      });
+    }
+  } catch (err) {
+    console.error('Chicken step error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
+// POST /api/game/chicken/cashout
+router.post('/chicken/cashout', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+    const session = chickenSessions.get(userId);
+
+    if (!session || !session.active || session.currentStep < 0) {
+      res.status(400).json({ error: 'Nieprawidłowa próba wypłaty' });
+      return;
+    }
+
+    session.active = false;
+    chickenSessions.delete(userId);
+
+    const mult = CHICKEN_MULTIPLIERS[session.currentStep];
+    const winnings = Math.floor(session.bet * mult);
+    const tokensDelta = winnings - session.bet;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { tokens: { increment: winnings } },
+      select: { tokens: true }
+    });
+
+    const needs = await applyNeedsDecay(userId, 'solo');
+    await prisma.playerStats.update({
+      where: { userId },
+      data: { gamesPlayed: { increment: 1 } }
+    });
+    await prisma.matchHistory.create({
+      data: { player1Id: userId, gameType: 'chicken_road', tokensDelta }
+    });
+
+    res.json({
+      success: true,
+      winnings,
+      tokens: updatedUser.tokens,
+      needs,
+      message: `🐔 Sukces! Pomogłeś kurczakowi bezpiecznie pokonać drogę i wypłaciłeś wygraną ${winnings} żetonów (${mult}x)!`
+    });
+  } catch (err) {
+    console.error('Chicken cashout error:', err);
+    res.status(500).json({ error: 'Wewnętrzny błąd serwera' });
+  }
+});
+
 export default router;

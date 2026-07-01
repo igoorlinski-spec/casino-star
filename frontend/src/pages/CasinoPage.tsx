@@ -505,9 +505,248 @@ const CrashGame: React.FC<{
   );
 };
 
+// ─── CHICKEN ROAD SUBCOMPONENT ────────────────────────────────────────────────
+const CHICKEN_MULTIPLIERS = [1.25, 1.43, 1.66, 1.94, 2.28, 2.71, 3.25, 3.94, 4.85, 6.00];
+
+const ChickenGame: React.FC<{
+  user: any;
+  setUser: (u: any) => void;
+  updateNeeds: (n: any) => void;
+  depleted: boolean;
+}> = ({ user, setUser, updateNeeds, depleted }) => {
+  const [bet, setBet] = useState(50);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(-1);
+  const [isCrashed, setIsCrashed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const startChickenGame = async () => {
+    if (depleted || !user || user.tokens < bet || isPlaying) return;
+    sfxClick();
+    setLoading(true);
+    setIsCrashed(false);
+    setCurrentStep(-1);
+    setMessage(null);
+
+    try {
+      const res = await api.post('/game/chicken/start', { bet });
+      setUser({ ...user, tokens: res.data.tokens });
+      setIsPlaying(true);
+      sfxSpinStart();
+    } catch (err: any) {
+      sfxLose();
+      alert(err.response?.data?.error || 'Błąd rozpoczynania gry');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const takeStep = async () => {
+    if (!isPlaying || loading) return;
+    sfxClick();
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await api.post('/game/chicken/step');
+      if (res.data.crashed) {
+        setIsCrashed(true);
+        setIsPlaying(false);
+        sfxLose();
+        setMessage(res.data.message);
+        if (res.data.needs) updateNeeds(res.data.needs);
+        api.get('/auth/me').then(r => { if (user) setUser(r.data.user); });
+      } else {
+        setCurrentStep(res.data.step);
+        sfxCardDeal();
+      }
+    } catch (err: any) {
+      sfxLose();
+      alert(err.response?.data?.error || 'Błąd ruchu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cashout = async () => {
+    if (!isPlaying || loading || currentStep < 0) return;
+    sfxClick();
+    setLoading(true);
+
+    try {
+      const res = await api.post('/game/chicken/cashout');
+      setUser({ ...user, tokens: res.data.tokens });
+      if (res.data.needs) updateNeeds(res.data.needs);
+      setIsPlaying(false);
+      sfxWin();
+      setMessage(res.data.message);
+    } catch (err: any) {
+      sfxLose();
+      alert(err.response?.data?.error || 'Błąd wypłaty');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'center', width: '100%' }}>
+      <div style={{ textAlign: 'center' }}>
+        <NeonTitle text="🐔 CHICKEN ROAD" color="#ffd700" />
+        <p style={{ color: '#a39cb3', fontSize: '0.85rem', marginTop: 8 }}>
+          Przeprowadź bezpiecznie kurczaka przez ruchliwą drogę Vegas! Każdy krok zwiększa mnożnik. Nie daj się rozjechać!
+        </p>
+      </div>
+
+      <div className="glass-card" style={{
+        width: '100%', maxWidth: 900, height: 350, background: '#0a0d24',
+        border: '3px solid var(--neon-cyan)', borderRadius: 24, overflow: 'hidden',
+        boxShadow: 'inset 0 0 60px rgba(0,240,255,0.15)', position: 'relative',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 20
+      }}>
+        <div style={{
+          flex: 1, position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 9.5%, rgba(255,255,255,0.06) 9.5%, rgba(255,255,255,0.06) 10%)',
+          padding: '0 10px'
+        }}>
+          {CHICKEN_MULTIPLIERS.map((mult, index) => {
+            const isReached = index <= currentStep;
+            const isCurrent = index === currentStep;
+            return (
+              <div key={index} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
+                height: '100%', position: 'relative'
+              }}>
+                <div style={{ fontSize: '1.8rem', opacity: isReached ? 0.3 : 1 }}>
+                  🚧
+                </div>
+
+                <div style={{
+                  fontSize: '0.6rem', fontWeight: 900, color: 'rgba(255,255,255,0.15)',
+                  letterSpacing: '0.05em', transform: 'rotate(-90deg)', margin: '15px 0'
+                }}>
+                  CHICKEN ROAD
+                </div>
+
+                {isCurrent && (
+                  <div style={{
+                    position: 'absolute', top: '35%', zIndex: 10, fontSize: '3rem',
+                    animation: 'walk-bob 0.25s infinite alternate', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))'
+                  }}>
+                    🐔
+                  </div>
+                )}
+
+                {isCrashed && index === currentStep + 1 && (
+                  <div style={{
+                    position: 'absolute', top: '35%', zIndex: 10, fontSize: '3.5rem',
+                    animation: 'bounce-in 0.2s'
+                  }}>
+                    💥
+                  </div>
+                )}
+
+                <div style={{
+                  width: 54, height: 54, borderRadius: '50%',
+                  background: isReached ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : 'rgba(0,0,0,0.4)',
+                  border: `2px solid ${isReached ? '#ffd700' : 'rgba(255,255,255,0.1)'}`,
+                  color: isReached ? '#05020a' : '#a39cb3', fontWeight: 900, fontSize: '0.75rem',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: isReached ? '0 0 15px rgba(255, 215, 0, 0.4)' : 'none',
+                  transition: 'all 0.3s ease'
+                }}>
+                  x{mult}
+                </div>
+
+                {isCurrent && (
+                  <div style={{
+                    background: '#ffd700', color: '#000', padding: '3px 8px', borderRadius: 8,
+                    fontSize: '0.7rem', fontWeight: 900, marginTop: 5, boxShadow: '0 2px 6px rgba(0,0,0,0.5)'
+                  }}>
+                    x{mult}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {message && (
+          <div style={{
+            background: isCrashed ? 'rgba(255,0,85,0.15)' : 'rgba(57,255,20,0.15)',
+            border: `1px solid ${isCrashed ? 'var(--neon-pink)' : 'var(--neon-green)'}`,
+            color: isCrashed ? 'var(--neon-pink)' : 'var(--neon-green)',
+            padding: '8px 20px', borderRadius: 12, textAlign: 'center', fontWeight: 'bold',
+            fontSize: '0.9rem', width: '100%', marginTop: 10
+          }}>
+            {message}
+          </div>
+        )}
+      </div>
+
+      <div className="glass-card" style={{
+        width: '100%', maxWidth: 700, padding: '20px 24px', background: 'rgba(15, 8, 30, 0.9)',
+        border: '1px solid rgba(0,240,255,0.2)', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', flexWrap: 'wrap', gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)' }}>STAWKA (🪙):</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <button disabled={isPlaying} onClick={() => setBet(b => Math.max(10, b - 10))} className="btn-ghost" style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: 6 }}>-</button>
+              <input disabled={isPlaying} type="number" value={bet} onChange={e => setBet(Math.max(10, parseInt(e.target.value) || 10))} style={{ width: 80, padding: '6px 10px', textAlign: 'center', borderRadius: 6 }} />
+              <button disabled={isPlaying} onClick={() => setBet(b => b + 10)} className="btn-ghost" style={{ padding: '6px 12px', fontSize: '0.8rem', borderRadius: 6 }}>+</button>
+            </div>
+          </div>
+
+          {!isPlaying && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 15 }}>
+              <button onClick={() => setBet(10)} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '0.65rem', borderRadius: 4 }}>MIN</button>
+              <button onClick={() => setBet(b => Math.floor(b * 2))} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '0.65rem', borderRadius: 4 }}>x2</button>
+              <button onClick={() => setBet(b => Math.max(10, Math.floor(b / 2)))} className="btn-ghost" style={{ padding: '4px 8px', fontSize: '0.65rem', borderRadius: 4 }}>/2</button>
+            </div>
+          )}
+        </div>
+
+        <div>
+          {!isPlaying ? (
+            <button
+              onClick={startChickenGame}
+              disabled={loading || depleted || !user || user.tokens < bet}
+              className="btn-gold"
+              style={{ padding: '12px 40px', fontSize: '1.05rem', borderRadius: 30 }}
+            >
+              🚀 POSTAW BET
+            </button>
+          ) : (
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={cashout}
+                disabled={loading || currentStep < 0}
+                className="btn-gold"
+                style={{ padding: '12px 25px', fontSize: '0.95rem', background: 'linear-gradient(135deg, #2ecc71, #27ae60)', boxShadow: '0 0 15px rgba(46,204,113,0.4)', color: '#fff' }}
+              >
+                💰 WYPŁAĆ ({currentStep >= 0 ? Math.floor(bet * CHICKEN_MULTIPLIERS[currentStep]) : 0} 🪙)
+              </button>
+              <button
+                onClick={takeStep}
+                disabled={loading || currentStep >= 9}
+                className="btn-red"
+                style={{ padding: '12px 25px', fontSize: '0.95rem' }}
+              >
+                ➡️ IDŹ DALEJ
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── MAIN CASINO PAGE ────────────────────────────────────────────────────────
 const CasinoPage: React.FC = () => {
-  const [mode, setMode] = useState<'blackjack' | 'slots' | 'races' | 'crash'>('blackjack');
+  const [mode, setMode] = useState<'blackjack' | 'slots' | 'races' | 'crash' | 'chicken'>('blackjack');
   const [bet, setBet] = useState(25);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ text: string; type: 'win' | 'lose' | 'push' | 'bj' } | null>(null);
@@ -763,7 +1002,8 @@ const CasinoPage: React.FC = () => {
           { id: 'blackjack', label: '🃏 Blackjack', color: 'var(--gold)' },
           { id: 'slots', label: '🎰 Automat', color: '#e040fb' },
           { id: 'races', label: '🏁 Wyścigi (x5)', color: '#05d9e8' },
-          { id: 'crash', label: '🚀 Crash Game', color: '#2ecc71' }
+          { id: 'crash', label: '🚀 Crash Game', color: '#2ecc71' },
+          { id: 'chicken', label: '🐔 Chicken Road', color: '#ffd700' }
         ].map(t => (
           <button key={t.id} onClick={() => { sfxClick(); setMode(t.id as any); }}
             style={{
@@ -1210,6 +1450,10 @@ const CasinoPage: React.FC = () => {
 
       {mode === 'crash' && (
         <CrashGame user={user} setUser={setUser} updateNeeds={updateNeeds} depleted={depleted} />
+      )}
+
+      {mode === 'chicken' && (
+        <ChickenGame user={user} setUser={setUser} updateNeeds={updateNeeds} depleted={depleted} />
       )}
     </div>
   );

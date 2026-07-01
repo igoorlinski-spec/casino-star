@@ -28,7 +28,7 @@ const TownMap: React.FC = () => {
   const BUILDINGS = React.useMemo<Building[]>(() => [
     { id: 'saloon', name: '🎰 Casino Bellagio', emoji: '🎲', color: '#00f0ff', x: 20, y: 20, path: '/game/kasyno', desc: 'Blackjack, Slots, Crash, Races' },
     { id: 'duel', name: '⚡ High Roller Arena', emoji: '🏆', color: '#ff007f', x: 50, y: 20, path: '/game/rywalizacja', desc: 'Graj z innymi graczami online' },
-    { id: 'sheriff', name: '👮 Security Patrol', emoji: '🚨', color: '#39ff14', x: 80, y: 20, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
+    {id: 'sheriff', name: '👮 Praca', emoji: '🚨', color: '#39ff14', x: 80, y: 20, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
     { id: 'cabaret', name: '🔞 Vegas Nightclub', emoji: '💃', color: '#ff00aa', x: 20, y: 50, path: '/game/rozrywka', desc: 'Randki, Strip Club, Kino' },
     { id: 'home', name: `🏨 Twój Apartament (${houseName})`, emoji: houseEmoji, color: '#ffd700', x: 50, y: 50, path: '/game/dom', desc: 'Odpocznij i zregeneruj siły' },
     { id: 'tracks', name: '🚇 Vegas Monorail', emoji: '🚝', color: '#ff5e00', x: 80, y: 50, path: '/game/tory', desc: 'Przejmij rannych na torach metra' },
