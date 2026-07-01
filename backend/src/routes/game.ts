@@ -665,11 +665,14 @@ router.post('/crash/start', async (req: Request, res: Response): Promise<void> =
 
     crashSessions.set(userId, { bet, crashMultiplier, active: true });
 
+    // Obfuscate crashMultiplier from plain sight in Network tab
+    const obfuscatedMultiplier = Buffer.from((crashMultiplier * 9.876).toString()).toString('base64');
+
     res.json({
       success: true,
       message: 'Gra Crash rozpoczęta!',
       tokens: user.tokens,
-      crashMultiplier
+      crashMultiplier: obfuscatedMultiplier
     });
   } catch (err) {
     console.error('Crash start error:', err);

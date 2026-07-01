@@ -215,7 +215,7 @@ const CrashGame: React.FC<{
       const res = await api.post('/game/crash/start', { bet });
       setUser({ ...user, tokens: res.data.tokens });
       
-      const serverCrashMult = res.data.crashMultiplier;
+      const serverCrashMult = parseFloat(atob(res.data.crashMultiplier)) / 9.876;
 
       startTimeRef.current = Date.now();
       const tick = () => {
