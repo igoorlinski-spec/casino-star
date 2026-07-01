@@ -25,14 +25,15 @@ export const TownMap: React.FC = () => {
   const houseEmoji = houseId === 4 ? '🏡' : (houseId === 3 ? '🪵' : (houseId === 2 ? '⛺' : '🏚️'));
   const houseName = houseId === 4 ? 'Willa' : (houseId === 3 ? 'Mieszkanie' : (houseId === 2 ? 'Kawalerka' : 'Rudera'));
 
-  const BUILDINGS: Building[] = [
+  const BUILDINGS = React.useMemo<Building[]>(() => [
     { id: 'saloon', name: '🍺 Saloon (Kasyno)', emoji: '🎰', color: '#ff9f43', x: 20, y: 25, path: '/game/kasyno', desc: 'Blackjack, Slots, Crash, Races' },
     { id: 'sheriff', name: '⭐ Sheriff (Praca)', emoji: '🤠', color: '#10ac84', x: 80, y: 25, path: '/game/praca', desc: 'Burger clicks, Flappy Bird rewards' },
-    { id: 'home', name: `🏠 Twój Dom (${houseName})`, emoji: houseEmoji, color: '#ee5253', x: 50, y: 50, path: '/game/sklep', desc: 'Odpocznij i zregeneruj siły' },
+    { id: 'home', name: `🏠 Twój Dom (${houseName})`, emoji: houseEmoji, color: '#ee5253', x: 50, y: 50, path: '/game/dom', desc: 'Odpocznij i zregeneruj siły' },
     { id: 'store', name: '🛒 General Store (Sklep)', emoji: '📦', color: '#2e86de', x: 20, y: 75, path: '/game/sklep', desc: 'Jedzenie, picie, plecak' },
     { id: 'bank', name: '🏛️ Bank & Biznes', emoji: '📈', color: '#00d2d3', x: 80, y: 75, path: '/game/biznes', desc: 'Giełda, inwestycje, rankingi' },
-  ];
+  ], [houseEmoji, houseName]);
 
+  // Click-to-walk mouse simulation
   useEffect(() => {
     if (!target) return;
 
@@ -45,7 +46,6 @@ export const TownMap: React.FC = () => {
         if (dist < 2) {
           clearInterval(interval);
           setTarget(null);
-          // Navigate to building screen
           navigate(target.path);
           return { x: target.x, y: target.y };
         }
@@ -60,6 +60,43 @@ export const TownMap: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [target, navigate]);
+
+  // Keyboard WASD/Arrow keys walking
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      let dx = 0;
+      let dy = 0;
+      const step = 3; // percentage shift per press
+
+      if (key === 'w' || key === 'arrowup') dy = -step;
+      else if (key === 's' || key === 'arrowdown') dy = step;
+      else if (key === 'a' || key === 'arrowleft') dx = -step;
+      else if (key === 'd' || key === 'arrowright') dx = step;
+
+      if (dx !== 0 || dy !== 0) {
+        setTarget(null); // Cancel mouse target
+        setCowboy((prev) => {
+          const nextX = Math.max(5, Math.min(95, prev.x + dx));
+          const nextY = Math.max(5, Math.min(95, prev.y + dy));
+
+          // Check collision with all buildings
+          for (const b of BUILDINGS) {
+            const dist = Math.sqrt((b.x - nextX) ** 2 + (b.y - nextY) ** 2);
+            if (dist < 5) {
+              setTimeout(() => navigate(b.path), 50);
+              break;
+            }
+          }
+
+          return { x: nextX, y: nextY };
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, BUILDINGS]);
 
   const handleBuildingClick = (b: Building) => {
     setTarget({ x: b.x, y: b.y, path: b.path });
@@ -144,7 +181,7 @@ export const TownMap: React.FC = () => {
         background: 'rgba(28, 14, 7, 0.95)', borderTop: '2px solid #5c3a21',
         padding: '10px 20px', textAlign: 'center', fontSize: '0.85rem', color: '#c5b497'
       }}>
-        Kliknij budynek, aby podejść i wejść do środka.
+        Użyj klawiszy WASD / Strzałek do chodzenia, lub kliknij budynek, aby kowboj podszedł sam.
       </div>
 
       <style>{`
