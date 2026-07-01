@@ -49,3 +49,33 @@ export async function applyNeedsDecay(userId: string, mode: Mode) {
 
   return updatedNeeds;
 }
+
+/**
+ * Calculates and subtracts passive needs decay since last update.
+ * Hunger & Hydration: 100 points over 30 minutes (1800s).
+ * Happiness: 100 points over 20 minutes (1200s).
+ */
+export async function processPassiveNeedsDecay(userId: string) {
+  const needs = await prisma.playerNeeds.findUnique({ where: { userId } });
+  if (!needs) return null;
+
+  const now = Date.now();
+  const elapsedSec = (now - new Date(needs.updatedAt).getTime()) / 1000;
+
+  if (elapsedSec > 5) {
+    const hungerDecay = elapsedSec * (100 / 1800); // 30 mins
+    const hydrationDecay = elapsedSec * (100 / 1800); // 30 mins
+    const happinessDecay = elapsedSec * (100 / 1200); // 20 mins
+
+    return await prisma.playerNeeds.update({
+      where: { userId },
+      data: {
+        hunger: Math.max(0, needs.hunger - hungerDecay),
+        hydration: Math.max(0, needs.hydration - hydrationDecay),
+        happiness: Math.max(0, needs.happiness - happinessDecay)
+      }
+    });
+  }
+
+  return needs;
+}

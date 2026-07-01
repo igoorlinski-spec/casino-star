@@ -210,6 +210,10 @@ router.get(
       const { processPassiveIncome } = await import('../services/businessService');
       await processPassiveIncome(userId);
 
+      // Przetwarzaj pasywny spadek potrzeb
+      const { processPassiveNeedsDecay } = await import('../services/needsService');
+      await processPassiveNeedsDecay(userId);
+
       const user = await prisma.user.findUnique({
         where: { id: userId },
         include: {
